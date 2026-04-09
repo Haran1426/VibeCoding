@@ -1,150 +1,98 @@
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
+using UnityEngine.UI;
 
+/// <summary>
+/// EventBus 이벤트로만 갱신됩니다 — 싱글턴 직접 참조 없음.
+/// </summary>
 public class HUDManager : MonoBehaviour
 {
-    [Header("HUD")]
-    public Slider healthBar;
-    public Slider expBar;
-    public TextMeshProUGUI scoreText;
-    public TextMeshProUGUI timerText;
-    public TextMeshProUGUI levelText;
-    public TextMeshProUGUI killText;
+    [Header("타이머")]
+    [SerializeField] private TextMeshProUGUI timerText;
 
-    [Header("Level Up Panel")]
-    public GameObject levelUpPanel;
-    public Button[] abilityButtons;
-    public TextMeshProUGUI[] abilityNameTexts;
-    public TextMeshProUGUI[] abilityDescTexts;
+    [Header("점수")]
+    [SerializeField] private TextMeshProUGUI scoreText;
 
-    [Header("Game Over Panel")]
-    public GameObject gameOverPanel;
-    public TextMeshProUGUI finalTimeText;
-    public TextMeshProUGUI finalScoreText;
-    public TextMeshProUGUI finalKillText;
-    public Button restartButton;
-    public Button menuButton;
+    [Header("넉백 %")]
+    [SerializeField] private TextMeshProUGUI knockbackText;
+    [SerializeField] private Image           knockbackFill;
 
-    private System.Collections.Generic.List<AbilityData> currentChoices;
+    [Header("분신 수")]
+    [SerializeField] private TextMeshProUGUI cloneCountText;
 
-    void Start()
+    [Header("카운트다운")]
+    [SerializeField] private TextMeshProUGUI countdownText;
+
+    void OnEnable()
     {
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.OnScoreChanged += UpdateScore;
-            GameManager.Instance.OnExpChanged   += UpdateExp;
-            GameManager.Instance.OnLevelUp      += _ => { };
-            GameManager.Instance.OnGameOver     += ShowGameOver;
-        }
+        EventBus.OnMatchStateChanged += OnMatchState;
+        EventBus.OnScoreChanged      += OnScoreChanged;
+        EventBus.OnKnockbackChanged  += OnKnockbackChanged;
+        EventBus.OnCloneSpawned      += OnCloneSpawned;
+    }
 
-        if (PlayerStats.Instance != null)
-            PlayerStats.Instance.OnHealthChanged += UpdateHealth;
-
-        if (AbilityManager.Instance != null)
-            AbilityManager.Instance.OnAbilityChoiceReady += ShowLevelUpPanel;
-
-        if (levelUpPanel != null) levelUpPanel.SetActive(false);
-        if (gameOverPanel != null) gameOverPanel.SetActive(false);
-
-        if (restartButton != null) restartButton.onClick.AddListener(() => GameManager.Instance?.RestartGame());
-        if (menuButton != null) menuButton.onClick.AddListener(() => GameManager.Instance?.GoToMainMenu());
-
-        InitAbilityButtons();
-        UpdateHealth(PlayerStats.Instance != null ? PlayerStats.Instance.currentHealth : 100f,
-                     PlayerStats.Instance != null ? PlayerStats.Instance.maxHealth : 100f);
+    // [버그7 픽스] CancelInvoke 추가해 씬 언로드 시 오류 방지
+    void OnDisable()
+    {
+        CancelInvoke(nameof(HideCountdown));
+        EventBus.OnMatchStateChanged -= OnMatchState;
+        EventBus.OnScoreChanged      -= OnScoreChanged;
+        EventBus.OnKnockbackChanged  -= OnKnockbackChanged;
+        EventBus.OnCloneSpawned      -= OnCloneSpawned;
     }
 
     void Update()
     {
-        if (GameManager.Instance == null) return;
-        if (timerText != null) timerText.text = GameManager.Instance.GetFormattedTime();
-        if (killText != null)  killText.text  = "x " + GameManager.Instance.enemiesKilled;
-        if (levelText != null) levelText.text = "Lv." + GameManager.Instance.playerLevel;
+        if (MatchManager.Instance == null) return;
+        if (timerText != null)
+            timerText.text = MatchManager.Instance.GetFormattedTime();
     }
 
-    void UpdateHealth(float current, float max)
+    private void OnMatchState(MatchState s)
     {
-        if (healthBar != null)
+        if (countdownText == null) return;
+
+        if (s == MatchState.Countdown)
         {
-            healthBar.maxValue = max;
-            healthBar.value = current;
+            countdownText.gameObject.SetActive(true);
+            countdownText.text = "READY...";
+        }
+        else if (s == MatchState.Playing)
+        {
+            countdownText.gameObject.SetActive(true);
+            countdownText.text = "FIGHT!";
+            Invoke(nameof(HideCountdown), 0.8f);
+        }
+        else
+        {
+            countdownText.gameObject.SetActive(false);
         }
     }
 
-    void UpdateScore(int score)
+    private void HideCountdown()
     {
-        if (scoreText != null) scoreText.text = score.ToString("N0");
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(false);
     }
 
-    void UpdateExp(int current, int max)
+    private void OnScoreChanged(int playerId, int score)
     {
-        if (expBar != null)
-        {
-            expBar.maxValue = max;
-            expBar.value = current;
-        }
+        if (playerId != 0) return;
+        if (scoreText != null) scoreText.text = "SCORE  " + score;
     }
 
-    void InitAbilityButtons()
+    private void OnKnockbackChanged(int entityId, float pct)
     {
-        if (abilityButtons == null) return;
-        for (int i = 0; i < abilityButtons.Length; i++)
-        {
-            int index = i;
-            if (abilityButtons[i] != null)
-                abilityButtons[i].onClick.AddListener(() => ChooseAbility(index));
-        }
+        if (entityId != 0) return;
+        if (knockbackText != null)
+            knockbackText.text = Mathf.RoundToInt(pct) + "%";
+        if (knockbackFill != null)
+            knockbackFill.fillAmount = Mathf.Clamp01(pct / 200f);
     }
 
-    void ShowLevelUpPanel(System.Collections.Generic.List<AbilityData> choices)
+    private void OnCloneSpawned(int count)
     {
-        currentChoices = choices;
-        if (levelUpPanel != null) levelUpPanel.SetActive(true);
-
-        for (int i = 0; i < abilityButtons.Length; i++)
-        {
-            bool hasChoice = i < choices.Count;
-            if (abilityButtons[i] != null) abilityButtons[i].gameObject.SetActive(hasChoice);
-            if (hasChoice)
-            {
-                if (abilityNameTexts != null && i < abilityNameTexts.Length && abilityNameTexts[i] != null)
-                    abilityNameTexts[i].text = choices[i].displayName +
-                        (choices[i].currentLevel > 0 ? " Lv." + (choices[i].currentLevel + 1) : "");
-                if (abilityDescTexts != null && i < abilityDescTexts.Length && abilityDescTexts[i] != null)
-                    abilityDescTexts[i].text = choices[i].description;
-            }
-        }
-    }
-
-    void ChooseAbility(int index)
-    {
-        if (currentChoices == null || index >= currentChoices.Count) return;
-        AbilityManager.Instance?.ApplyAbility(currentChoices[index]);
-        if (levelUpPanel != null) levelUpPanel.SetActive(false);
-    }
-
-    void ShowGameOver()
-    {
-        if (gameOverPanel == null) return;
-        gameOverPanel.SetActive(true);
-        if (GameManager.Instance == null) return;
-        if (finalTimeText != null)  finalTimeText.text  = GameManager.Instance.GetFormattedTime();
-        if (finalScoreText != null) finalScoreText.text = GameManager.Instance.score.ToString("N0");
-        if (finalKillText != null)  finalKillText.text  = GameManager.Instance.enemiesKilled.ToString();
-    }
-
-    void OnDestroy()
-    {
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.OnScoreChanged -= UpdateScore;
-            GameManager.Instance.OnExpChanged   -= UpdateExp;
-            GameManager.Instance.OnGameOver     -= ShowGameOver;
-        }
-        if (PlayerStats.Instance != null)
-            PlayerStats.Instance.OnHealthChanged -= UpdateHealth;
-        if (AbilityManager.Instance != null)
-            AbilityManager.Instance.OnAbilityChoiceReady -= ShowLevelUpPanel;
+        if (cloneCountText != null)
+            cloneCountText.text = "CLONES  " + count;
     }
 }

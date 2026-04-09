@@ -1,51 +1,50 @@
 using UnityEngine;
 
+/// <summary>
+/// 플레이어(또는 분신)의 스탯과 넉백 데미지 누적을 관리합니다.
+/// Smash Bros 방식: knockbackPercent 가 높을수록 더 멀리 날아갑니다.
+/// </summary>
 public class PlayerStats : MonoBehaviour
 {
-    public static PlayerStats Instance { get; private set; }
+    [Header("Identity")]
+    public int  playerId = 0;
+    public bool isClone  = false;
 
-    [Header("Base Stats")]
-    public float maxHealth = 100f;
-    public float currentHealth;
-    public float moveSpeed = 8f;
-    public float bulletDamage = 25f;
-    public float fireRate = 0.2f;      // seconds between shots
-    public float bulletSpeed = 20f;
-    public float bulletRange = 15f;
-    public int pierceCount = 0;        // extra enemies bullet passes through
-    public float damageMultiplier = 1f;
-    public float speedMultiplier = 1f;
-    public float fireRateMultiplier = 1f;
-    public bool hasTripleShot = false;
-    public bool hasSplitShot = false;
-    public float magnetRadius = 3f;
-    public int maxBullets = 1;
+    [Header("이동")]
+    public float moveSpeed   = 8f;
+    public float jumpForce   = 10f;
 
-    public System.Action<float, float> OnHealthChanged; // current, max
-    public System.Action OnDeath;
+    [Header("대시")]
+    public float dashSpeed    = 20f;
+    public float dashDuration = 0.14f;
+    public float dashCooldown = 0.9f;
 
-    void Awake()
+    [Header("공격")]
+    public float attackPower   = 10f;  // 기본 넉백 세기
+    public float attackDamage  = 12f;  // knockbackPercent 증가량
+    public float attackRadius  = 1.6f;
+    public float attackRange   = 1.4f;
+    public float attackCooldown = 0.35f;
+
+    // ── 런타임 상태 ──────────────────────────────────────────
+    [HideInInspector] public float knockbackPercent = 0f;
+    [HideInInspector] public int   lastHitBy        = -1;
+
+    public void ResetKnockback()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
-        currentHealth = maxHealth;
+        knockbackPercent = 0f;
+        lastHitBy        = -1;
+        EventBus.RaiseKnockbackChanged(playerId, knockbackPercent);
     }
 
-    public void TakeDamage(float amount)
+    public void AddKnockback(float damage, int attackerId)
     {
-        currentHealth = Mathf.Max(0f, currentHealth - amount);
-        OnHealthChanged?.Invoke(currentHealth, maxHealth);
-        if (currentHealth <= 0f)
-            OnDeath?.Invoke();
+        knockbackPercent += damage;
+        lastHitBy         = attackerId;
+        EventBus.RaiseKnockbackChanged(playerId, knockbackPercent);
     }
 
-    public void Heal(float amount)
-    {
-        currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
-        OnHealthChanged?.Invoke(currentHealth, maxHealth);
-    }
-
-    public float GetActualFireRate() => fireRate / fireRateMultiplier;
-    public float GetActualMoveSpeed() => moveSpeed * speedMultiplier;
-    public float GetActualDamage() => bulletDamage * damageMultiplier;
+    /// <summary>넉백 퍼센트에 따른 실제 발사 힘 계산</summary>
+    public float GetKnockbackForce(float basePower)
+        => basePower * (1f + knockbackPercent / 60f);
 }
