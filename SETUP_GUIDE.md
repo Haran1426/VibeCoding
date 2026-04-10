@@ -1,85 +1,111 @@
-# Color Pop Puzzle — Unity 씬 설정 가이드
-
-## 1. 레벨 데이터 자동 생성
-Unity 에디터 상단 메뉴에서:
-```
-Tools > Color Pop > Generate 20 Levels
-```
-→ `Assets/ScriptableObjects/Levels/` 에 Level_01 ~ Level_20 생성됨
+# Neon Rewind Arena — Unity 씬 설정 가이드
 
 ---
 
-## 2. Block 프리팹 생성
-
-1. **Hierarchy** → Create → UI → Image
-2. 이름: `Block`
-3. **Image** 컴포넌트: Source Image = 흰색 스프라이트 (Rounded Square 권장)
-4. **Block.cs** 컴포넌트 추가
-   - `Bg Image` → 자신의 Image 컴포넌트
-   - `Glow Image` → 자식 Image 오브젝트 하나 추가 (흰색, alpha 0)
-5. **Prefabs/** 폴더로 드래그해서 프리팹 저장
-
----
-
-## 3. Game 씬 구조
+## 1. 씬 목록 (Build Settings)
 
 ```
-Canvas (Screen Space - Overlay, 1080×1920 권장)
-├── Background          (Image, 전체 화면 배경색)
-│
-├── HUD                 (최상단 영역)
-│   ├── LevelTitle      (TextMeshPro) ← UIManager.levelTitleText
-│   ├── ScoreText       (TextMeshPro) ← UIManager.scoreText
-│   ├── BestScoreText   (TextMeshPro) ← UIManager.bestScoreText
-│   └── Stars           (3개의 Image)← UIManager.starImages[0~2]
-│
-├── BoardArea           (중앙 정사각형 영역)
-│   └── BoardContainer  (RectTransform) ← BoardManager.boardContainer
-│       └── (Block들이 여기에 생성됨)
-│
-├── PopScoreText        (TextMeshPro, 중앙 위) ← UIManager.popScoreText
-│
-└── ResultPanel         (Panel)         ← UIManager.resultPanel
-    ├── ResultTitle     (TextMeshPro)   ← UIManager.resultTitleText
-    ├── ResultScore     (TextMeshPro)   ← UIManager.resultScoreText
-    ├── ResultStars     (3개 Image)     ← UIManager.resultStarImages
-    ├── NextButton      (Button)        ← UIManager.nextButton
-    ├── RetryButton     (Button)        → GameManager.OnRetryClicked()
-    └── MenuButton      (Button)        → GameManager.OnMenuClicked()
-
-GameManagers (빈 오브젝트)
-├── GameManager.cs
-│   ├── Board Manager → BoardManager 오브젝트
-│   ├── UI Manager    → UIManager 오브젝트 (또는 Canvas)
-│   ├── Audio Manager → AudioManager 오브젝트
-│   └── Levels        → Level_01 ~ Level_20 드래그
-├── BoardManager.cs
-│   ├── Board Container → BoardArea/BoardContainer
-│   └── Block Prefab    → Prefabs/Block
-├── UIManager.cs
-└── AudioManager.cs
+[0] Assets/Scenes/MenuScene/MenuScene.unity
+[1] Assets/Scenes/ArenaScene/ArenaScene.unity
 ```
 
 ---
 
-## 4. 점수 공식
+## 2. ArenaScene 오브젝트 연결
+
+### _Systems 빈 오브젝트 구성
+
+| 컴포넌트 | 연결할 필드 |
+|---|---|
+| `MatchManager` | — |
+| `RespawnManager` | Respawn Delay=2, Player Object→Player, Spawn Points[]→4개 |
+| `CloneManager` | Clone Prefab→Clone.prefab, Max Clones=8, Spawn Points[]→4개 |
+| `ScoreSystem` | — |
+| `AudioManager` | — |
+
+### _Core 빈 오브젝트 구성
+
+| 컴포넌트 | 연결할 필드 |
+|---|---|
+| `NeonNetworkManager` | Player Prefab→Player.prefab, Spawn Points[]→4개 |
+| `VFXManager` | — |
+| `ObjectPool` | — |
+| `SceneBootstrapper` | — |
+
+---
+
+## 3. Player 프리팹 컴포넌트
+
 ```
-획득 점수 = 그룹 크기² × 10
-전체 클리어 보너스 = 1000점
+Player (GameObject)
+├── Rigidbody           (Use Gravity=true, Freeze Rotation XZ)
+├── CapsuleCollider     (높이 2, 반지름 0.5)
+├── PlayerController    (Attack Target Mask=Player+Clone Layer)
+├── PlayerStats         (playerId=0, isClone=false)
+├── PlayerInput
+├── InputRecorder
+├── DeathDetector       (Death Y=-8, Death Zone Tag="DeathZone")
+├── KnockbackReceiver
+└── PlayerNetworkSync   (NGO NetworkObject 필요)
 ```
 
-## 5. 빌드 설정 (스토브 인디)
-- **File > Build Settings**
-  - Platform: PC, Mac & Linux Standalone
-  - Target Platform: Windows
-  - Architecture: x86_64
-  - Resolution: 1280×720 이상 권장
+---
 
-## 6. 스토브 인디 등록 필수 자료
-| 항목 | 규격 |
-|------|------|
-| 대표 이미지 | 460×215 px |
-| 캡처 이미지 | 1280×720 이상, 최소 3장 |
-| 게임 제목 | Color Pop Puzzle |
-| 장르 | 캐주얼/퍼즐 |
-| 연령 등급 | 전체 이용가 |
+## 4. Clone 프리팹 컴포넌트
+
+```
+Clone (GameObject)
+├── Rigidbody           (Use Gravity=true)
+├── CapsuleCollider
+├── PlayerController
+├── PlayerStats         (isClone=true 고정)
+├── CloneController     (Init에서 자동 설정)
+├── DeathDetector
+└── KnockbackReceiver
+```
+
+> `CloneInput`은 `CloneController.Init()` 호출 시 코드에서 생성 & 주입됩니다. Inspector 연결 불필요.
+
+---
+
+## 5. HUD Canvas 구조
+
+```
+HUD Canvas (Screen Space - Overlay)
+├── TimerText       (TextMeshProUGUI) ← HUDManager.timerText
+├── ScoreText       (TextMeshProUGUI) ← HUDManager.scoreText
+├── KnockbackText   (TextMeshProUGUI) ← HUDManager.knockbackText
+├── KnockbackFill   (Image, Fill)     ← HUDManager.knockbackFill
+├── CloneCountText  (TextMeshProUGUI) ← HUDManager.cloneCountText
+└── CountdownText   (TextMeshProUGUI) ← HUDManager.countdownText
+```
+
+---
+
+## 6. 레이어 & 태그 설정
+
+| 항목 | 값 |
+|---|---|
+| Player 레이어 | `Player` |
+| Clone 레이어 | `Clone` |
+| Arena 낙사존 태그 | `DeathZone` |
+| Attack Target Mask | `Player` + `Clone` 레이어 포함 |
+
+---
+
+## 7. 네트워크 테스트 (로컬)
+
+1. File > Build Settings → Build (Windows)
+2. 빌드 실행 → **Host** 버튼 클릭
+3. Unity Editor에서 **Play** → **Join** 버튼 클릭 + IP `127.0.0.1` 입력
+4. 두 클라이언트 모두 ArenaScene 진입 확인
+
+---
+
+## 8. 빌드 설정 (Steam / Stove)
+
+- **Platform**: PC, Mac & Linux Standalone
+- **Target**: Windows x86_64
+- **Company Name**: (팀명)
+- **Product Name**: Neon Rewind Arena
+- **Version**: 0.1.0

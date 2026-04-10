@@ -59,7 +59,16 @@ public class PlayerController : MonoBehaviour
             _input = GetComponent<PlayerInput>();
     }
 
-    void Start() => _cam = Camera.main;
+    void Start()
+    {
+        _cam = Camera.main;
+
+        // MatchManager 가 없거나 이미 Playing 상태면 바로 활성화
+        if (MatchManager.Instance == null)
+            _matchPlaying = true;
+        else if (MatchManager.Instance.CurrentState == MatchState.Playing)
+            _matchPlaying = true;
+    }
 
     void OnEnable()
     {
@@ -149,11 +158,13 @@ public class PlayerController : MonoBehaviour
     // ── 지면 체크 ─────────────────────────────────────────────
     private void CheckGround()
     {
+        // groundMask 가 비어 있으면 모든 레이어 대상으로 체크
+        int mask = groundMask == 0 ? ~0 : (int)groundMask;
         _isGrounded = Physics.Raycast(
             transform.position + Vector3.up * 0.05f,
             Vector3.down,
             groundCheckDist + 0.05f,
-            groundMask);
+            mask);
     }
 
     // ── 대시 ─────────────────────────────────────────────────
