@@ -59,8 +59,12 @@ public class PlayerNetworkSync : NetworkBehaviour
 
         if (IsOwner)
         {
-            // 내 캐릭터: PlayerInput 활성화
-            GetComponent<PlayerInput>().enabled = true;
+            // 내 캐릭터: 키보드 또는 게임패드 활성화 (연결된 것만)
+            var pi = GetComponent<PlayerInput>();
+            var gi = GetComponent<GamepadInput>();
+            if (pi != null) pi.enabled = true;
+            if (gi != null) gi.enabled = true;
+
             _stats.playerId = (int)OwnerClientId;
 
             // 카메라를 내 캐릭터에 고정
@@ -69,9 +73,12 @@ public class PlayerNetworkSync : NetworkBehaviour
         }
         else
         {
-            // 다른 플레이어: 로컬 입력 비활성화
+            // 다른 플레이어: 로컬 입력 전체 비활성화
             var pi = GetComponent<PlayerInput>();
             if (pi != null) pi.enabled = false;
+
+            var gi = GetComponent<GamepadInput>();
+            if (gi != null) gi.enabled = false;
 
             var rec = GetComponent<InputRecorder>();
             if (rec != null) rec.enabled = false;
@@ -164,9 +171,9 @@ public class PlayerNetworkSync : NetworkBehaviour
     public void SpawnCloneClientRpc(InputFrame[] frames, Vector3 deathPos, int cloneId)
     {
         var list = new List<InputFrame>(frames);
+        // PlayCloneSpawn 은 CloneManager.SpawnClone() 내부에서 호출됨 — 중복 방지
         CloneManager.Instance?.SpawnClone(list);
         EventBus.RaiseCloneSpawned(CloneManager.Instance?.ActiveCloneCount ?? 0);
-        AudioManager.Instance?.PlayCloneSpawn();
     }
 
     /// <summary>공격 VFX 모든 클라이언트 재생</summary>

@@ -37,6 +37,20 @@ public class CloneManager : MonoBehaviour
     void OnEnable()  => EventBus.OnEntityDied += OnEntityDied;
     void OnDisable() => EventBus.OnEntityDied -= OnEntityDied;
 
+    // [버그6 픽스] 재생 완료된 분신 자동 제거
+    void Update()
+    {
+        for (int i = _activeClones.Count - 1; i >= 0; i--)
+        {
+            if (_activeClones[i].IsReplayFinished)
+            {
+                ReturnToPool(_activeClones[i]);
+                _activeClones.RemoveAt(i);
+                EventBus.RaiseCloneSpawned(_activeClones.Count);
+            }
+        }
+    }
+
     private void OnEntityDied(int entityId, Vector3 position, int hitBy)
     {
         // 분신 사망 — 풀로 반환

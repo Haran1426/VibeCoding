@@ -21,12 +21,11 @@ public class CloneController : MonoBehaviour
         _stats     = GetComponent<PlayerStats>();
         _renderers = GetComponentsInChildren<Renderer>();
 
-        // 최초 1회 인스턴스 머티리얼 생성
+        // [버그4 픽스] 최초 1회 인스턴스 머티리얼 생성 (Built-in / URP 자동 감지)
         _cachedMats = new Material[_renderers.Length];
         for (int i = 0; i < _renderers.Length; i++)
         {
-            _cachedMats[i] = new Material(Shader.Find("Standard"));
-            SetupTransparentMaterial(_cachedMats[i]);
+            _cachedMats[i] = CreateTransparentMaterial();
             _renderers[i].material = _cachedMats[i];
         }
     }
@@ -54,17 +53,45 @@ public class CloneController : MonoBehaviour
         gameObject.SetActive(true);
     }
 
-    private static void SetupTransparentMaterial(Material mat)
+    // [버그4 픽스] Built-in RP / URP 자동 감지 투명 머티리얼 생성
+    private static Material CreateTransparentMaterial()
     {
-        mat.SetFloat("_Mode", 3);
-        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-        mat.SetInt("_ZWrite", 0);
-        mat.EnableKeyword("_ALPHABLEND_ON");
-        mat.DisableKeyword("_ALPHATEST_ON");
-        mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-        mat.renderQueue = 3000;
-        mat.EnableKeyword("_EMISSION");
+        // URP 우선
+        Shader urp = Shader.Find("Universal Render Pipeline/Lit");
+        if (urp != null)
+        {
+            var m = new Material(urp);
+            m.SetFloat("_Surface", 1f);   // 0=Opaque, 1=Transparent
+            m.SetFloat("_Blend",   0f);   // Alpha blending
+            m.SetFloat("_AlphaClip", 0f);
+            m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.SetInt("_ZWrite", 0);
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.EnableKeyword("_EMISSION");
+            m.renderQueue = 3000;
+            return m;
+        }
+
+        // Built-in Standard fallback
+        Shader builtin = Shader.Find("Standard");
+        if (builtin != null)
+        {
+            var m = new Material(builtin);
+            m.SetFloat("_Mode", 3);
+            m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.SetInt("_ZWrite", 0);
+            m.EnableKeyword("_ALPHABLEND_ON");
+            m.DisableKeyword("_ALPHATEST_ON");
+            m.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            m.renderQueue = 3000;
+            m.EnableKeyword("_EMISSION");
+            return m;
+        }
+
+        // 최후 fallback (Sprites/Default는 항상 존재)
+        return new Material(Shader.Find("Sprites/Default"));
     }
 
     public bool IsReplayFinished => _cloneInput != null && _cloneInput.IsFinished;

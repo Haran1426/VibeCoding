@@ -8,7 +8,7 @@ using UnityEngine;
 /// 매 Update 시작 시 스냅샷(_snapshot)을 먼저 저장한 뒤 버튼 소비.
 /// InputRecorder 는 소비 전 스냅샷을 읽어 분신에 정확히 전달합니다.
 /// </summary>
-public class PlayerInput : MonoBehaviour, IInputProvider
+public class PlayerInput : MonoBehaviour, IInputProvider, ISnapshotCapture
 {
     private bool _jumpPending;
     private bool _dashPending;

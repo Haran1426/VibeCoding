@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 
@@ -23,14 +25,53 @@ public class ResultsPanel : MonoBehaviour
     [SerializeField] private Button restartButton;
     [SerializeField] private Button menuButton;
 
-    // 내 플레이어 ID (싱글/로컬: 0)
-    private const int LocalPlayerId = 0;
+    // 싱글=0, 멀티=OwnerClientId (OnMatchEnded 시점에 결정)
+    private int _localPlayerId;
 
     void Awake()
     {
         panel?.SetActive(false);
-        restartButton?.onClick.AddListener(() => MatchManager.Instance?.RestartMatch());
-        menuButton?.onClick.AddListener(()    => MatchManager.Instance?.GoToMainMenu());
+        // [버그2 픽스] 로컬/네트워크 모드 분기
+        restartButton?.onClick.AddListener(OnRestartClicked);
+        menuButton?.onClick.AddListener(OnMenuClicked);
+
+        var netSync = FindFirstObjectByType<PlayerNetworkSync>();
+        if (netSync != null && netSync.IsOwner)
+            _localPlayerId = (int)netSync.OwnerClientId;
+        else
+            _localPlayerId = 0;
+    }
+
+    private void OnRestartClicked()
+    {
+        if (MatchManager.Instance != null)
+        {
+            MatchManager.Instance.RestartMatch();
+        }
+        else
+        {
+            // 네트워크 모드: 연결 종료 후 씬 재로드
+            NetworkManager.Singleton?.Shutdown();
+            EventBus.Clear();
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+    }
+
+    private void OnMenuClicked()
+    {
+        if (MatchManager.Instance != null)
+        {
+            MatchManager.Instance.GoToMainMenu();
+        }
+        else
+        {
+            // 네트워크 모드: 연결 종료 후 메뉴로
+            NetworkManager.Singleton?.Shutdown();
+            EventBus.Clear();
+            Time.timeScale = 1f;
+            SceneManager.LoadScene("MenuScene");
+        }
     }
 
     void OnEnable()  => EventBus.OnMatchEnded += OnMatchEnded;
@@ -47,7 +88,7 @@ public class ResultsPanel : MonoBehaviour
 
         // 승자 판단
         int winnerId = ranked.Count > 0 ? ranked[0].Key : -1;
-        bool iWon    = winnerId == LocalPlayerId;
+        bool iWon    = winnerId == _localPlayerId;
 
         if (titleText != null)
             titleText.text = iWon ? "YOU WIN!" : "MATCH END";
@@ -62,7 +103,7 @@ public class ResultsPanel : MonoBehaviour
             {
                 int  pid   = ranked[i].Key;
                 int  score = ranked[i].Value;
-                bool isMe  = pid == LocalPlayerId;
+                bool isMe  = pid == _localPlayerId;
 
                 string label = isMe ? "You" : $"P{pid + 1}";
                 string medal = i < medals.Length ? medals[i] : $"{i + 1}th";
@@ -79,9 +120,15 @@ public class ResultsPanel : MonoBehaviour
             }
         }
 
-        // 최고 점수
-        int myScore = scores.TryGetValue(LocalPlayerId, out int ms) ? ms : 0;
+        // 최고 점수 — 갱신 후 저장
+        int myScore = scores.TryGetValue(_localPlayerId, out int ms) ? ms : 0;
         int best    = PlayerPrefs.GetInt("BestScore", 0);
+        if (myScore > best)
+        {
+            best = myScore;
+            PlayerPrefs.SetInt("BestScore", best);
+            PlayerPrefs.Save();
+        }
         if (bestScoreText != null)
             bestScoreText.text = $"BEST  {best}pt";
     }

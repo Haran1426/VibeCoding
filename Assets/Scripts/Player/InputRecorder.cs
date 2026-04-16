@@ -5,19 +5,29 @@ using UnityEngine;
 /// SRP: 매 FixedUpdate 마다 InputFrame 을 기록합니다.
 ///
 /// [버그2 픽스]
-/// IInputProvider 대신 PlayerInput.GetSnapshot() 을 사용합니다.
+/// IInputProvider 대신 ISnapshotCapture.GetSnapshot() 을 사용합니다.
 /// PlayerController 가 Update 에서 버튼 입력을 소비하기 전에
-/// PlayerInput 이 스냅샷을 저장하므로 점프/대시/공격이 정확히 기록됩니다.
+/// 스냅샷을 저장하므로 점프/대시/공격이 정확히 기록됩니다.
+///
+/// PlayerInput(키보드+마우스) / GamepadInput(게임패드) 모두 지원.
 /// </summary>
 public class InputRecorder : MonoBehaviour
 {
-    private PlayerInput              _playerInput;
+    private ISnapshotCapture         _snapCapture; // PlayerInput 또는 GamepadInput
     private readonly List<InputFrame> _frames = new List<InputFrame>(4096);
     private bool _recording;
 
     void Awake()
     {
-        _playerInput = GetComponent<PlayerInput>();
+        // PlayerController 와 동일한 로직으로 스냅샷 제공자 선택
+        // (게임패드 연결 시 GamepadInput, 없으면 PlayerInput)
+        var gi = GetComponent<GamepadInput>();
+        var pi = GetComponent<PlayerInput>();
+
+        if (gi != null && UnityEngine.InputSystem.Gamepad.current != null)
+            _snapCapture = gi;
+        else if (pi != null)
+            _snapCapture = pi;
     }
 
     void OnEnable()  => EventBus.OnMatchStateChanged += OnMatchState;
@@ -31,8 +41,8 @@ public class InputRecorder : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!_recording || _playerInput == null) return;
-        _frames.Add(_playerInput.GetSnapshot()); // 소비 전 스냅샷 사용
+        if (!_recording || _snapCapture == null) return;
+        _frames.Add(_snapCapture.GetSnapshot()); // 소비 전 스냅샷 사용
     }
 
     /// <summary>현재까지 기록된 프레임 목록 반환 (복사본)</summary>

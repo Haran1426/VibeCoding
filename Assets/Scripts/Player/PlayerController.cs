@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// 실제 플레이어와 분신(Clone) 모두 이 컨트롤러를 사용합니다.
@@ -21,6 +22,7 @@ public class PlayerController : MonoBehaviour
     // ── 공격 ─────────────────────────────────────────────────
     [SerializeField] private LayerMask attackTargetMask;
     private float _attackTimer;
+    private PlayerNetworkSync _netSync;  // [버그3 픽스] 멀티 공격 위임용
 
     // ── 대시 ─────────────────────────────────────────────────
     private float _dashCooldownTimer;
@@ -51,12 +53,19 @@ public class PlayerController : MonoBehaviour
     // ════════════════════════════════════════════════════════
     void Awake()
     {
-        _rb    = GetComponent<Rigidbody>();
-        _stats = GetComponent<PlayerStats>();
+        _rb       = GetComponent<Rigidbody>();
+        _stats    = GetComponent<PlayerStats>();
+        _netSync  = GetComponent<PlayerNetworkSync>();  // [버그3 픽스]
         _rb.freezeRotation = true;
 
         if (!_stats.isClone)
-            _input = GetComponent<PlayerInput>();
+        {
+            // 게임패드 연결 시 GamepadInput 우선, 없으면 키보드+마우스
+            var gamepadComp = GetComponent<GamepadInput>();
+            _input = (gamepadComp != null && Gamepad.current != null)
+                ? (IInputProvider)gamepadComp
+                : GetComponent<PlayerInput>();
+        }
     }
 
     void Start()
@@ -68,6 +77,20 @@ public class PlayerController : MonoBehaviour
             _matchPlaying = true;
         else if (MatchManager.Instance.CurrentState == MatchState.Playing)
             _matchPlaying = true;
+
+        // 게임패드가 뒤늦게 인식될 경우 재시도
+        if (!_stats.isClone && _input == null)
+            RefreshInputProvider();
+    }
+
+    /// <summary>게임패드 연결/해제 시 동적 입력 전환</summary>
+    private void RefreshInputProvider()
+    {
+        if (_stats.isClone) return;
+        var gamepadComp = GetComponent<GamepadInput>();
+        _input = (gamepadComp != null && Gamepad.current != null)
+            ? (IInputProvider)gamepadComp
+            : GetComponent<PlayerInput>();
     }
 
     void OnEnable()
@@ -131,13 +154,21 @@ public class PlayerController : MonoBehaviour
         if (_input.GetDashDown() && !_isDashing && _dashCooldownTimer <= 0f)
             StartDash();
 
-        // 공격
+        // 공격 — [버그3 픽스] 네트워크 모드면 ServerRpc 위임, 싱글이면 로컬 처리
         if (_input.GetAttackDown() && _attackTimer <= 0f)
-            DoAttack();
+        {
+            _attackTimer = _stats.attackCooldown;
 
-        // 분신: 한 프레임씩 전진
-        if (_stats.isClone && _input is CloneInput ci)
-            ci.Advance();
+            Vector3 aimDir = _aimInput.sqrMagnitude > 0.01f
+                ? new Vector3(_aimInput.x, 0f, _aimInput.y).normalized
+                : transform.forward;
+
+            if (_netSync != null && _netSync.IsOwner && _netSync.IsSpawned)
+                _netSync.AttackServerRpc(aimDir);
+            else
+                DoAttackLocal(aimDir);
+        }
+
     }
 
     void FixedUpdate()
@@ -153,6 +184,10 @@ public class PlayerController : MonoBehaviour
             move.x * _stats.moveSpeed,
             _rb.linearVelocity.y,
             move.z * _stats.moveSpeed);
+
+        // [버그5 픽스] 분신 프레임 전진: 기록이 FixedUpdate 기준이므로 여기서 advance
+        if (_stats.isClone && _input is CloneInput ci)
+            ci.Advance();
     }
 
     // ── 지면 체크 ─────────────────────────────────────────────
@@ -182,15 +217,9 @@ public class PlayerController : MonoBehaviour
         AudioManager.Instance?.PlayDash();
     }
 
-    // ── 공격 ─────────────────────────────────────────────────
-    private void DoAttack()
+    // ── 공격 (싱글 전용 로컬 처리) ──────────────────────────
+    private void DoAttackLocal(Vector3 aimDir)
     {
-        _attackTimer = _stats.attackCooldown;
-
-        Vector3 aimDir = _aimInput.sqrMagnitude > 0.01f
-            ? new Vector3(_aimInput.x, 0f, _aimInput.y).normalized
-            : transform.forward;
-
         Vector3 center = transform.position + aimDir * _stats.attackRange;
         center.y = transform.position.y + 0.5f;
 
