@@ -1,9 +1,12 @@
 using System.Collections;
+using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// SRP: 플레이어 리스폰만 담당합니다.
-/// [버그3 픽스] Rigidbody null 체크 추가.
+/// SRP: 싱글플레이어 리스폰만 담당합니다.
+///
+/// 멀티플레이어에서는 PlayerNetworkSync.DiedServerRpc 가 리스폰을 처리합니다.
+/// NetworkManager.IsListening 이 true 이면 이 매니저는 아무것도 하지 않습니다.
 /// </summary>
 public class RespawnManager : MonoBehaviour
 {
@@ -24,7 +27,12 @@ public class RespawnManager : MonoBehaviour
 
     private void OnEntityDied(int entityId, Vector3 pos, int hitBy)
     {
-        if (entityId != 0) return;
+        // 멀티플레이어 중에는 PlayerNetworkSync 가 처리 — 여기서는 건드리지 않음
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening) return;
+
+        // 싱글: 플레이어(ID 0~99)만 처리. 분신 사망은 CloneManager 가 처리.
+        if (entityId >= 100) return;
+        if (entityId != (playerObject?.GetComponent<PlayerStats>()?.playerId ?? 0)) return;
         if (MatchManager.Instance?.CurrentState != MatchState.Playing) return;
 
         var recorder = playerObject?.GetComponent<InputRecorder>();
@@ -47,12 +55,16 @@ public class RespawnManager : MonoBehaviour
         playerObject.transform.position = GetSpawnPoint();
         playerObject.GetComponent<PlayerStats>()?.ResetKnockback();
         playerObject.GetComponent<DeathDetector>()?.ResetDead();
+        playerObject.GetComponent<InputRecorder>()?.ClearRecording();
 
-        // [버그3 픽스] null 체크
         var rb = playerObject.GetComponent<Rigidbody>();
         if (rb != null) rb.linearVelocity = Vector3.zero;
 
         playerObject.SetActive(true);
+
+        // 리스폰 무적 (1.5초)
+        playerObject.GetComponent<PlayerStats>()?.StartInvincibility(1.5f);
+
         AudioManager.Instance?.PlayRespawn();
         VFXManager.Instance?.PlayLevelUp(playerObject.transform.position);
     }

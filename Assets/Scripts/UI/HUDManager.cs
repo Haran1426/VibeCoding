@@ -11,8 +11,8 @@ public class HUDManager : MonoBehaviour
     [Header("타이머")]
     [SerializeField] private TextMeshProUGUI timerText;
 
-    [Header("점수")]
-    [SerializeField] private TextMeshProUGUI scoreText;
+    [Header("점수 (ScoreboardUI 로 대체됨 — 싱글 폴백용으로만 사용)")]
+    [SerializeField] private TextMeshProUGUI scoreText;   // 비워도 무방
 
     [Header("넉백 %")]
     [SerializeField] private TextMeshProUGUI knockbackText;
@@ -25,7 +25,7 @@ public class HUDManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI countdownText;
 
     [Header("리스폰 대기")]
-    [SerializeField] private TextMeshProUGUI respawnText;   // "RESPAWNING  1.5s"
+    [SerializeField] private TextMeshProUGUI respawnText;
     [SerializeField] private float           respawnDelay = 2f;
 
     // ── 넉백 색상 단계 ──────────────────────────────────────
@@ -36,7 +36,13 @@ public class HUDManager : MonoBehaviour
 
     // ── 로컬 플레이어 ID ────────────────────────────────────
     private int  _localPlayerId;
-    private bool _idResolved;      // 멀티플레이어 지연 해석용
+    private bool _idResolved;
+
+    // 멀티플레이어: 0.5초 간격으로 재시도, 10초 이후 포기
+    private const float IdRetryInterval = 0.5f;
+    private const float IdRetryTimeout  = 10f;
+    private float _idRetryTimer;
+    private float _idRetryElapsed;
 
     // ── 리스폰 코루틴 ───────────────────────────────────────
     private Coroutine _respawnCoroutine;
@@ -44,11 +50,16 @@ public class HUDManager : MonoBehaviour
     // ════════════════════════════════════════════════════════
     void Awake()
     {
-        // 싱글 또는 호스트: 기본값 0
         _localPlayerId = 0;
         _idResolved    = false;
 
         if (respawnText != null) respawnText.gameObject.SetActive(false);
+    }
+
+    void Start()
+    {
+        // 싱글은 Awake 기본값(0)으로 충분. 멀티는 주기적으로 재시도.
+        TryResolvePlayerId();
     }
 
     void OnEnable()
@@ -74,22 +85,35 @@ public class HUDManager : MonoBehaviour
 
     void Update()
     {
-        // 멀티플레이어 OwnerClientId 지연 해석 (OnNetworkSpawn 이후에 생김)
-        if (!_idResolved)
+        // 멀티 플레이어 ID 지연 해석: 일정 간격으로만 탐색
+        if (!_idResolved && _idRetryElapsed < IdRetryTimeout)
         {
-            var netSync = FindFirstObjectByType<PlayerNetworkSync>();
-            if (netSync != null && netSync.IsSpawned && netSync.IsOwner)
+            _idRetryTimer   += Time.deltaTime;
+            _idRetryElapsed += Time.deltaTime;
+
+            if (_idRetryTimer >= IdRetryInterval)
             {
-                _localPlayerId = (int)netSync.OwnerClientId;
-                _idResolved    = true;
+                _idRetryTimer = 0f;
+                TryResolvePlayerId();
             }
         }
 
         if (timerText == null) return;
+
         if (MatchManager.Instance != null)
             timerText.text = MatchManager.Instance.GetFormattedTime();
         else if (MatchNetworkManager.Instance != null)
             timerText.text = MatchNetworkManager.Instance.GetFormattedTime();
+    }
+
+    private void TryResolvePlayerId()
+    {
+        var netSync = FindFirstObjectByType<PlayerNetworkSync>();
+        if (netSync != null && netSync.IsSpawned && netSync.IsOwner)
+        {
+            _localPlayerId = (int)netSync.OwnerClientId;
+            _idResolved    = true;
+        }
     }
 
     // ════════════════════════════════════════════════════════
@@ -158,6 +182,7 @@ public class HUDManager : MonoBehaviour
     // ════════════════════════════════════════════════════════
     private void OnScoreChanged(int playerId, int score)
     {
+        // ScoreboardUI 가 있으면 그쪽에서 처리 — 폴백으로만 동작
         if (playerId != _localPlayerId) return;
         if (scoreText != null) scoreText.text = "SCORE  " + score;
     }
@@ -166,14 +191,12 @@ public class HUDManager : MonoBehaviour
     {
         if (entityId != _localPlayerId) return;
 
-        // 텍스트
         if (knockbackText != null)
         {
             knockbackText.text  = Mathf.RoundToInt(pct) + "%";
             knockbackText.color = KnockbackColor(pct);
         }
 
-        // 게이지 바
         if (knockbackFill != null)
         {
             knockbackFill.fillAmount = Mathf.Clamp01(pct / 200f);

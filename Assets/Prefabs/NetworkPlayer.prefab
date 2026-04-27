@@ -22,6 +22,7 @@ GameObject:
   - component: {fileID: 5245537581479807807}
   - component: {fileID: 1172139441437545882}
   - component: {fileID: 965200264720183078}
+  - component: {fileID: 2737392144438347665}
   m_Layer: 0
   m_Name: NetworkPlayer
   m_TagString: Player
@@ -229,6 +230,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   upwardBias: 0.35
+  shakeThreshold: 12
 --- !u!114 &2165321085225986957
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -254,7 +256,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 3472307374
+  GlobalObjectIdHash: 2823139372
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -341,3 +343,18 @@ MonoBehaviour:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: -1
+  attackTargetMask:
+    serializedVersion: 2
+    m_Bits: 0
+--- !u!114 &2737392144438347665
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4704496451730149657}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 890f8049cb2b18541a83a93ae85122d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

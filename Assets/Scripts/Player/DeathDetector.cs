@@ -3,8 +3,8 @@ using UnityEngine;
 /// <summary>
 /// SRP: 낙사 감지만 담당합니다.
 ///
-/// 멀티: NetworkObject가 있으면 PlayerNetworkSync.DiedServerRpc 로 전송.
-///       없으면(싱글/테스트) EventBus 로 직접 발행.
+/// 멀티: NetworkObject(Owner)가 있으면 DiedServerRpc(frames, killerId) 전송.
+///       없으면(싱글/분신) EventBus 로 직접 발행.
 /// </summary>
 public class DeathDetector : MonoBehaviour
 {
@@ -41,7 +41,7 @@ public class DeathDetector : MonoBehaviour
 
         if (netSync != null && netSync.IsOwner)
         {
-            // 멀티: 기록을 배열로 변환 후 ServerRpc 전송
+            // 멀티: 입력 기록 + lastHitBy 를 서버에 전송
             var frames = _recorder != null
                 ? _recorder.GetRecording().ToArray()
                 : new InputFrame[0];
@@ -54,16 +54,18 @@ public class DeathDetector : MonoBehaviour
                 frames = trimmed;
             }
 
-            netSync.DiedServerRpc(frames);
+            int killerId = _stats != null ? _stats.lastHitBy : -1;
+            netSync.DiedServerRpc(frames, killerId);
             _recorder?.ClearRecording();
         }
         else if (netSync == null)
         {
-            // 싱글 / 로컬 테스트용 fallback
-            int hitBy = _stats != null ? _stats.lastHitBy  : -1;
-            int id    = _stats != null ? _stats.playerId   :  0;
+            // 싱글 / 분신 fallback
+            int hitBy = _stats != null ? _stats.lastHitBy : -1;
+            int id    = _stats != null ? _stats.playerId  :  0;
             EventBus.RaiseEntityDied(id, transform.position, hitBy);
         }
+        // netSync != null && !IsOwner: 다른 플레이어 — Owner 쪽에서 이미 처리
     }
 
     public void ResetDead() => _dead = false;

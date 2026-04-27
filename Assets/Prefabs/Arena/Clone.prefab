@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 1081862603233749113}
   - component: {fileID: 8438960855460057868}
   - component: {fileID: 3237271595888081305}
+  - component: {fileID: 1740494835384351988}
   m_Layer: 0
   m_Name: Clone
   m_TagString: Untagged
@@ -200,6 +201,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d215d27afde29d04e8290617239fb8bb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  speedMultiplierAt60s: 1.5
+  speedMultiplierAt120s: 2.2
 --- !u!114 &8438960855460057868
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -213,6 +216,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   upwardBias: 0.35
+  shakeThreshold: 12
 --- !u!114 &3237271595888081305
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -226,3 +230,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   deathY: -8
+--- !u!114 &1740494835384351988
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2662494391909589339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 890f8049cb2b18541a83a93ae85122d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

@@ -4,55 +4,93 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// 메인 메뉴 씬 전체를 관리합니다.
-/// 설정(음량)은 PlayerPrefs로 저장합니다.
+/// 타이틀 씬 전체 패널 흐름을 관리합니다.
+/// 싱글플레이 / 멀티플레이 / 설정 / 종료
 /// </summary>
 public class MenuManager : MonoBehaviour
 {
-    [Header("Panels")]
-    [SerializeField] private GameObject mainPanel;
-    [SerializeField] private GameObject settingsPanel;
+    // ── 패널 ─────────────────────────────────────────────────
+    [Header("패널")]
+    [SerializeField] private GameObject    mainPanel;
+    [SerializeField] private GameObject    settingsPanel;
+    [SerializeField] private NetworkLobbyUI lobbyUI;   // 멀티 로비 위임
 
-    [Header("Main Panel")]
+    // ── 메인 패널 ─────────────────────────────────────────────
+    [Header("메인 버튼")]
+    [SerializeField] private Button playSingleButton;  // 싱글 바로 시작
+    [SerializeField] private Button playMultiButton;   // 멀티 로비
+    [SerializeField] private Button settingsButton;
+    [SerializeField] private Button quitButton;
+
+    [Header("메인 정보")]
     [SerializeField] private TextMeshProUGUI bestScoreText;
+    [SerializeField] private TextMeshProUGUI versionText;
 
-    [Header("Settings")]
-    [SerializeField] private Slider  masterVolumeSlider;
-    [SerializeField] private Slider  sfxVolumeSlider;
+    // ── 설정 패널 ─────────────────────────────────────────────
+    [Header("설정")]
+    [SerializeField] private Slider          masterVolumeSlider;
+    [SerializeField] private Slider          sfxVolumeSlider;
     [SerializeField] private TextMeshProUGUI masterVolumeLabel;
     [SerializeField] private TextMeshProUGUI sfxVolumeLabel;
+    [SerializeField] private Button          settingsBackButton;
 
-    private const string KEY_MASTER_VOL = "MasterVolume";
-    private const string KEY_SFX_VOL    = "SFXVolume";
-    private const string KEY_BEST_SCORE = "BestScore";
+    private const string KeyMaster    = "MasterVolume";
+    private const string KeySFX       = "SFXVolume";
+    private const string KeyBestScore = "BestScore";
+
+    // ════════════════════════════════════════════════════════
+    void Awake()
+    {
+        playSingleButton?.onClick.AddListener(OnSinglePlay);
+        playMultiButton?.onClick.AddListener(OnMultiPlay);
+        settingsButton?.onClick.AddListener(ShowSettings);
+        settingsBackButton?.onClick.AddListener(ShowMain);
+        quitButton?.onClick.AddListener(OnQuit);
+
+        masterVolumeSlider?.onValueChanged.AddListener(OnMasterChanged);
+        sfxVolumeSlider?.onValueChanged.AddListener(OnSFXChanged);
+    }
 
     void Start()
     {
         ShowMain();
         LoadSettings();
-        UpdateBestScore();
+        RefreshBestScore();
+
+        if (versionText != null) versionText.text = "v0.1.0";
     }
 
-    // ── 패널 전환 ──────────────────────────────────────────
+    // ── 패널 전환 ─────────────────────────────────────────────
+
     public void ShowMain()
     {
         mainPanel?.SetActive(true);
         settingsPanel?.SetActive(false);
+        lobbyUI?.HideLobby();
+        RefreshBestScore();
     }
 
-    public void ShowSettings()
+    private void ShowSettings()
     {
         mainPanel?.SetActive(false);
         settingsPanel?.SetActive(true);
     }
 
-    // ── 버튼 핸들러 ───────────────────────────────────────
-    public void OnPlayClicked()
+    // ── 버튼 핸들러 ──────────────────────────────────────────
+
+    private void OnSinglePlay()
     {
-        SceneManager.LoadScene("GameScene");
+        // NetworkManager 없이 ArenaScene 직행 → MatchManager(싱글) 가 진행 처리
+        SceneManager.LoadScene("ArenaScene");
     }
 
-    public void OnQuitClicked()
+    private void OnMultiPlay()
+    {
+        mainPanel?.SetActive(false);
+        lobbyUI?.ShowLobby(ShowMain);   // 뒤로가기 콜백 전달
+    }
+
+    private void OnQuit()
     {
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
@@ -61,41 +99,36 @@ public class MenuManager : MonoBehaviour
 #endif
     }
 
-    // ── 설정 ──────────────────────────────────────────────
+    // ── 설정 ─────────────────────────────────────────────────
+
     private void LoadSettings()
     {
-        float master = PlayerPrefs.GetFloat(KEY_MASTER_VOL, 1f);
-        float sfx    = PlayerPrefs.GetFloat(KEY_SFX_VOL,    1f);
+        float master = PlayerPrefs.GetFloat(KeyMaster, 0.8f);
+        float sfx    = PlayerPrefs.GetFloat(KeySFX,    0.8f);
 
-        if (masterVolumeSlider != null)
-        {
-            masterVolumeSlider.value = master;
-            masterVolumeSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
-        }
-        if (sfxVolumeSlider != null)
-        {
-            sfxVolumeSlider.value = sfx;
-            sfxVolumeSlider.onValueChanged.AddListener(OnSFXVolumeChanged);
-        }
+        if (masterVolumeSlider != null) masterVolumeSlider.value = master;
+        if (sfxVolumeSlider    != null) sfxVolumeSlider.value    = sfx;
 
-        ApplyVolume(master, sfx);
+        ApplyVolume(master);
         UpdateVolumeLabels(master, sfx);
     }
 
-    public void OnMasterVolumeChanged(float val)
+    private void OnMasterChanged(float val)
     {
-        PlayerPrefs.SetFloat(KEY_MASTER_VOL, val);
-        ApplyVolume(val, PlayerPrefs.GetFloat(KEY_SFX_VOL, 1f));
-        UpdateVolumeLabels(val, PlayerPrefs.GetFloat(KEY_SFX_VOL, 1f));
+        PlayerPrefs.SetFloat(KeyMaster, val);
+        PlayerPrefs.Save();
+        ApplyVolume(val);
+        UpdateVolumeLabels(val, PlayerPrefs.GetFloat(KeySFX, 0.8f));
     }
 
-    public void OnSFXVolumeChanged(float val)
+    private void OnSFXChanged(float val)
     {
-        PlayerPrefs.SetFloat(KEY_SFX_VOL, val);
-        UpdateVolumeLabels(PlayerPrefs.GetFloat(KEY_MASTER_VOL, 1f), val);
+        PlayerPrefs.SetFloat(KeySFX, val);
+        PlayerPrefs.Save();
+        UpdateVolumeLabels(PlayerPrefs.GetFloat(KeyMaster, 0.8f), val);
     }
 
-    private void ApplyVolume(float master, float sfx)
+    private static void ApplyVolume(float master)
     {
         AudioListener.volume = master;
         AudioManager.Instance?.RefreshVolume();
@@ -103,14 +136,16 @@ public class MenuManager : MonoBehaviour
 
     private void UpdateVolumeLabels(float master, float sfx)
     {
-        if (masterVolumeLabel != null) masterVolumeLabel.text = Mathf.RoundToInt(master * 100) + "%";
-        if (sfxVolumeLabel    != null) sfxVolumeLabel.text    = Mathf.RoundToInt(sfx    * 100) + "%";
+        if (masterVolumeLabel != null)
+            masterVolumeLabel.text = Mathf.RoundToInt(master * 100) + "%";
+        if (sfxVolumeLabel != null)
+            sfxVolumeLabel.text = Mathf.RoundToInt(sfx * 100) + "%";
     }
 
-    private void UpdateBestScore()
+    private void RefreshBestScore()
     {
-        int best = PlayerPrefs.GetInt(KEY_BEST_SCORE, 0);
-        if (bestScoreText != null)
-            bestScoreText.text = best > 0 ? "최고 점수  " + best.ToString("N0") : "";
+        if (bestScoreText == null) return;
+        int best = PlayerPrefs.GetInt(KeyBestScore, 0);
+        bestScoreText.text = best > 0 ? $"BEST  {best}pt" : "";
     }
 }
