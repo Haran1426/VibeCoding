@@ -2,8 +2,10 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// 아이소메트릭 고정 카메라. 플레이어를 부드럽게 추적합니다.
-/// Shake(duration, magnitude) 로 카메라 쉐이크를 재생할 수 있습니다.
+/// 아이소메트릭 고정 카메라.
+/// - 단일 타겟: SetTarget(t) → 그 오브젝트를 부드럽게 추적
+/// - 다중 타겟: SetTargets(t[]) → 모든 활성 플레이어의 중심을 추적
+/// - Shake(duration, magnitude) 로 카메라 쉐이크 재생
 /// </summary>
 public class ArenaCamera : MonoBehaviour
 {
@@ -14,6 +16,8 @@ public class ArenaCamera : MonoBehaviour
     [SerializeField] private float     smoothSpeed = 5f;
     [SerializeField] private bool      lockToArena = false;
     [SerializeField] private float     arenaRadius = 20f;
+
+    private Transform[] _multiTargets;
 
     private Vector3   _shakeOffset;
     private Coroutine _shakeCoroutine;
@@ -31,9 +35,8 @@ public class ArenaCamera : MonoBehaviour
 
     void LateUpdate()
     {
-        if (target == null) return;
-
-        Vector3 desired = target.position + offset + _shakeOffset;
+        Vector3 focusPoint = GetFocusPoint();
+        Vector3 desired    = focusPoint + offset + _shakeOffset;
 
         if (lockToArena)
         {
@@ -47,42 +50,70 @@ public class ArenaCamera : MonoBehaviour
         }
 
         transform.position = Vector3.Lerp(transform.position, desired, Time.deltaTime * smoothSpeed);
-        transform.LookAt(target.position + Vector3.up * 1f);
+        transform.LookAt(focusPoint + Vector3.up * 1f);
     }
 
-    /// <summary>멀티: 내 플레이어 스폰 후 카메라 타겟 교체.</summary>
-    public void SetTarget(Transform t) => target = t;
+    private Vector3 GetFocusPoint()
+    {
+        // 다중 타겟: 활성 플레이어 중심
+        if (_multiTargets != null && _multiTargets.Length > 0)
+        {
+            Vector3 sum   = Vector3.zero;
+            int     count = 0;
+            foreach (var t in _multiTargets)
+            {
+                if (t != null && t.gameObject.activeInHierarchy)
+                {
+                    sum += t.position;
+                    count++;
+                }
+            }
+            if (count > 0) return sum / count;
+        }
 
-    /// <summary>
-    /// 카메라 쉐이크. 이미 쉐이크 중이면 더 강한 쪽으로 덮어씁니다.
-    /// </summary>
-    /// <param name="duration">쉐이크 지속 시간(초)</param>
-    /// <param name="magnitude">최대 오프셋 크기(유닛)</param>
+        // 단일 타겟
+        if (target != null) return target.position;
+
+        return Vector3.zero;
+    }
+
+    // ── 공개 API ─────────────────────────────────────────────────
+
+    /// <summary>단일 타겟 설정 (멀티: 스폰 후 호출).</summary>
+    public void SetTarget(Transform t)
+    {
+        target        = t;
+        _multiTargets = null;
+    }
+
+    /// <summary>다중 타겟 설정 (로컬 멀티플레이어용).</summary>
+    public void SetTargets(Transform[] targets)
+    {
+        _multiTargets = targets;
+        target        = null;
+    }
+
+    /// <summary>카메라 쉐이크. 진행 중이면 덮어씁니다.</summary>
     public void Shake(float duration, float magnitude)
     {
-        // 진행 중인 쉐이크보다 약하면 무시
-        if (_shakeCoroutine != null)
-            StopCoroutine(_shakeCoroutine);
-
+        if (_shakeCoroutine != null) StopCoroutine(_shakeCoroutine);
         _shakeCoroutine = StartCoroutine(ShakeCoroutine(duration, magnitude));
     }
 
     private IEnumerator ShakeCoroutine(float duration, float magnitude)
     {
         float elapsed = 0f;
-
         while (elapsed < duration)
         {
-            float t       = elapsed / duration;
-            float dampen  = 1f - t;   // 시간이 지날수록 약해짐
-            float x = (Random.value * 2f - 1f) * magnitude * dampen;
-            float z = (Random.value * 2f - 1f) * magnitude * dampen;
-            _shakeOffset = new Vector3(x, 0f, z);
-
+            float t      = elapsed / duration;
+            float dampen = 1f - t;
+            _shakeOffset = new Vector3(
+                (Random.value * 2f - 1f) * magnitude * dampen,
+                0f,
+                (Random.value * 2f - 1f) * magnitude * dampen);
             elapsed += Time.deltaTime;
             yield return null;
         }
-
         _shakeOffset    = Vector3.zero;
         _shakeCoroutine = null;
     }

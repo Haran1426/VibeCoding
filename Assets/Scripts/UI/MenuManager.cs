@@ -13,12 +13,13 @@ public class MenuManager : MonoBehaviour
     [Header("패널")]
     [SerializeField] private GameObject    mainPanel;
     [SerializeField] private GameObject    settingsPanel;
-    [SerializeField] private NetworkLobbyUI lobbyUI;   // 멀티 로비 위임
+    [SerializeField] private NetworkLobbyUI lobbyUI;    // 네트워크 멀티 로비
+    [SerializeField] private LocalLobbyUI   localLobbyUI; // 로컬 멀티 인원 선택
 
     // ── 메인 패널 ─────────────────────────────────────────────
     [Header("메인 버튼")]
-    [SerializeField] private Button playSingleButton;  // 싱글 바로 시작
-    [SerializeField] private Button playMultiButton;   // 멀티 로비
+    [SerializeField] private Button playSingleButton;  // 로컬 플레이 (인원 선택)
+    [SerializeField] private Button playMultiButton;   // 네트워크 멀티 로비
     [SerializeField] private Button settingsButton;
     [SerializeField] private Button quitButton;
 
@@ -80,8 +81,8 @@ public class MenuManager : MonoBehaviour
 
     private void OnSinglePlay()
     {
-        // NetworkManager 없이 ArenaScene 직행 → MatchManager(싱글) 가 진행 처리
-        SceneManager.LoadScene("ArenaScene");
+        mainPanel?.SetActive(false);
+        localLobbyUI?.ShowPanel(ShowMain);
     }
 
     private void OnMultiPlay()

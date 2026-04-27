@@ -11,6 +11,13 @@ public static class PlayerSpawner
     [MenuItem("Tools/Neon Rewind/Spawn Player in Scene")]
     public static void SpawnPlayer()
     {
+        if (Application.isPlaying)
+        {
+            EditorUtility.DisplayDialog("플레이 모드 중",
+                "플레이 모드에서는 사용할 수 없습니다.\n\n플레이를 중지한 뒤 다시 실행하세요.", "확인");
+            return;
+        }
+
         // 기존 Player 있으면 제거
         var existing = GameObject.Find("Player");
         if (existing != null)
