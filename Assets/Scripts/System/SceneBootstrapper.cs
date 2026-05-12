@@ -2,9 +2,8 @@ using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// ArenaScene 전용 초기화.
-/// NetworkManager(DontDestroyOnLoad)가 MenuScene에서 넘어온 뒤 스폰 포인트를 연결합니다.
-/// 서버라면 MatchNetworkManager를 씬에서 찾아 NetworkObject를 스폰합니다.
+/// Arena scene startup glue. Repairs arena basics, wires spawn points, and spawns
+/// the server-authoritative match controller for online matches.
 /// </summary>
 public class SceneBootstrapper : MonoBehaviour
 {
@@ -12,16 +11,79 @@ public class SceneBootstrapper : MonoBehaviour
 
     void Start()
     {
-        // 스폰 포인트를 NeonNetworkManager 에 주입
+        EnsureCoreManagers();
+        EnsureRuntimeUIManagers();
+
+        Transform[] runtimeSpawnPoints = ArenaMapRuntimeBuilder.EnsureArena();
+        if ((spawnPoints == null || spawnPoints.Length == 0) &&
+            runtimeSpawnPoints != null && runtimeSpawnPoints.Length > 0)
+            spawnPoints = runtimeSpawnPoints;
+
         if (NeonNetworkManager.Net != null && spawnPoints != null && spawnPoints.Length > 0)
             NeonNetworkManager.Net.SetSpawnPoints(spawnPoints);
 
-        // 서버: MatchNetworkManager 스폰
+        RespawnManager.Instance?.SetSpawnPoints(spawnPoints);
+        CloneManager.Instance?.SetSpawnPoints(spawnPoints);
+
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
-            var mnm = FindFirstObjectByType<MatchNetworkManager>();
-            if (mnm != null && !mnm.IsSpawned)
-                mnm.GetComponent<NetworkObject>().Spawn();
+            EnsureNetworkMatchManager();
         }
+    }
+
+    private static void EnsureCoreManagers()
+    {
+        if (FindFirstObjectByType<AudioManager>() == null)
+            new GameObject("AudioManager_Runtime").AddComponent<AudioManager>();
+
+        if (FindFirstObjectByType<VFXManager>() == null)
+            new GameObject("VFXManager_Runtime").AddComponent<VFXManager>();
+
+        if (FindFirstObjectByType<HitStopManager>() == null)
+            new GameObject("HitStopManager_Runtime").AddComponent<HitStopManager>();
+    }
+
+    private static void EnsureRuntimeUIManagers()
+    {
+        var canvas = GameObject.Find("Arena HUD Canvas")?.GetComponent<Canvas>();
+        if (canvas == null)
+            canvas = RuntimeUIFactory.EnsureCanvas("Arena Runtime Canvas");
+
+        var root = GameObject.Find("RuntimeUIManagers");
+        if (root == null)
+        {
+            root = new GameObject("RuntimeUIManagers");
+            root.transform.SetParent(canvas.transform, false);
+        }
+
+        EnsureComponent<HUDManager>(root);
+        EnsureComponent<ScoreboardUI>(root);
+        EnsureComponent<KillFeedUI>(root);
+        EnsureComponent<PauseManager>(root);
+        EnsureComponent<ResultsPanel>(root);
+    }
+
+    private static void EnsureComponent<T>(GameObject root) where T : Component
+    {
+        if (FindFirstObjectByType<T>() != null) return;
+        root.AddComponent<T>();
+    }
+
+    private static void EnsureNetworkMatchManager()
+    {
+        var mnm = FindFirstObjectByType<MatchNetworkManager>();
+        if (mnm == null)
+        {
+            var go = new GameObject("MatchNetworkManager_Runtime");
+            go.AddComponent<NetworkObject>();
+            mnm = go.AddComponent<MatchNetworkManager>();
+        }
+
+        var netObj = mnm.GetComponent<NetworkObject>();
+        if (netObj == null)
+            netObj = mnm.gameObject.AddComponent<NetworkObject>();
+
+        if (!mnm.IsSpawned)
+            netObj.Spawn();
     }
 }

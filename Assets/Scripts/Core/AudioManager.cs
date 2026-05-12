@@ -24,8 +24,10 @@ public class AudioManager : MonoBehaviour
     private AudioClip clipPlayerHurt;
     private AudioClip _clipDash;        // [버그6 픽스]
     private AudioClip _clipCloneSpawn;  // [버그6 픽스]
+    private AudioClip _clipHeavyImpact;
 
     private const int SampleRate = 22050;
+    private int _eventBusClearVersion = -1;
 
     // ── 볼륨 ────────────────────────────────────────────────
     private float MasterVol => PlayerPrefs.GetFloat("MasterVolume", 0.8f);
@@ -43,8 +45,21 @@ public class AudioManager : MonoBehaviour
         StartBGM();
     }
 
-    void OnEnable()  => EventBus.OnMatchStateChanged += OnMatchStateChanged;
+    void OnEnable() => SubscribeEventBus();
     void OnDisable() => EventBus.OnMatchStateChanged -= OnMatchStateChanged;
+
+    void Update()
+    {
+        if (_eventBusClearVersion != EventBus.ClearVersion)
+            SubscribeEventBus();
+    }
+
+    private void SubscribeEventBus()
+    {
+        EventBus.OnMatchStateChanged -= OnMatchStateChanged;
+        EventBus.OnMatchStateChanged += OnMatchStateChanged;
+        _eventBusClearVersion = EventBus.ClearVersion;
+    }
 
     // ── BGM ─────────────────────────────────────────────────
     private void StartBGM()
@@ -82,6 +97,7 @@ public class AudioManager : MonoBehaviour
     // ── Neon Rewind Arena SFX ────────────────────────────────
     public void PlayAttack()      => PlaySFX(clipShoot,       0.5f);
     public void PlayAttackHit()   => PlaySFX(clipBulletHit,   0.7f);
+    public void PlayHeavyImpact() => PlaySFX(_clipHeavyImpact, 0.85f);
     public void PlayDash()        => PlaySFX(_clipDash,       0.5f);    // [버그6 픽스] 캐싱
     public void PlayCloneSpawn()  => PlaySFX(_clipCloneSpawn, 0.7f);    // [버그6 픽스] 캐싱
     public void PlayRespawn()     => PlaySFX(clipLevelUp,     0.6f);
@@ -150,6 +166,10 @@ public class AudioManager : MonoBehaviour
         // [버그6 픽스] 대시/분신 생성 SFX 미리 베이킹
         _clipDash       = GenerateSweep(600f, 1800f, 0.06f, 0.5f);
         _clipCloneSpawn = GenerateSweep(200f, 800f,  0.12f, 0.6f);
+        _clipHeavyImpact = GenerateMix(
+            GenerateTone(95f, 0.12f, 0.95f, fadeOut: true),
+            GenerateNoise(0.07f, 0.45f, fadeOut: true)
+        );
     }
 
     // ════════════════════════════════════════════════════════

@@ -9,6 +9,7 @@ using UnityEngine;
 public class DeathDetector : MonoBehaviour
 {
     [SerializeField] private float deathY = -8f;
+    [SerializeField] private float killCreditWindowSeconds = 6f;
 
     private PlayerStats      _stats;
     private InputRecorder    _recorder;
@@ -29,13 +30,13 @@ public class DeathDetector : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (_dead) return;
-        if (other.CompareTag("DeathZone")) TriggerDeath();
+        if (other.CompareTag("DeathZone") || other.name.Contains("DeathZone"))
+            TriggerDeath();
     }
 
     private void TriggerDeath()
     {
         _dead = true;
-        gameObject.SetActive(false);
 
         var netSync = GetComponent<PlayerNetworkSync>();
 
@@ -54,14 +55,19 @@ public class DeathDetector : MonoBehaviour
                 frames = trimmed;
             }
 
-            int killerId = _stats != null ? _stats.lastHitBy : -1;
+            int killerId = _stats != null
+                ? _stats.GetRecentAttackerId(killCreditWindowSeconds)
+                : -1;
             netSync.DiedServerRpc(frames, killerId);
             _recorder?.ClearRecording();
         }
         else if (netSync == null)
         {
             // 싱글 / 분신 fallback
-            int hitBy = _stats != null ? _stats.lastHitBy : -1;
+            gameObject.SetActive(false);
+            int hitBy = _stats != null
+                ? _stats.GetRecentAttackerId(killCreditWindowSeconds)
+                : -1;
             int id    = _stats != null ? _stats.playerId  :  0;
             EventBus.RaiseEntityDied(id, transform.position, hitBy);
         }

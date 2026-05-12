@@ -36,12 +36,25 @@ public class PlayerNetworkSync : NetworkBehaviour
     private PlayerController _controller;
     private PlayerStats      _stats;
     private InputRecorder    _recorder;
+    private Collider[]       _colliders;
+    private Renderer[]       _renderers;
+    private Rigidbody        _rb;
+    private bool             _serverDead;
+    private float            _nextServerAttackTime;
+    private Vector3          _lastSpawnPosition;
+    private readonly HashSet<int> _creditedCloneKills = new HashSet<int>();
+
+    private const int MaxReplayFrames = 2000;
+    private const float KillCreditWindowSeconds = 6f;
 
     void Awake()
     {
         _controller = GetComponent<PlayerController>();
         _stats      = GetComponent<PlayerStats>();
         _recorder   = GetComponent<InputRecorder>();
+        _colliders  = GetComponentsInChildren<Collider>(includeInactive: true);
+        _renderers  = GetComponentsInChildren<Renderer>(includeInactive: true);
+        _rb         = GetComponent<Rigidbody>();
     }
 
     // ════════════════════════════════════════════════════════
@@ -50,14 +63,19 @@ public class PlayerNetworkSync : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        ApplyAliveState(true);
+
         if (IsServer)
         {
+            _serverDead = false;
+            _nextServerAttackTime = 0f;
             NetPlayerId.Value = (int)OwnerClientId;
             _stats.playerId   = (int)OwnerClientId;
 
             Vector3 pos = NeonNetworkManager.Net != null
                 ? NeonNetworkManager.Net.GetNextSpawnPoint()
                 : Vector3.up;
+            _lastSpawnPosition = pos;
             transform.position = pos;
         }
 
@@ -67,6 +85,16 @@ public class PlayerNetworkSync : NetworkBehaviour
             var gi = GetComponent<GamepadInput>();
             if (pi != null) pi.enabled = true;
             if (gi != null) gi.enabled = true;
+            if (pi != null)
+            {
+                _controller.SetInputProvider(pi);
+                _recorder?.SetSnapshotCapture(pi);
+            }
+            else if (gi != null)
+            {
+                _controller.SetInputProvider(gi);
+                _recorder?.SetSnapshotCapture(gi);
+            }
 
             _stats.playerId = (int)OwnerClientId;
 
@@ -83,6 +111,8 @@ public class PlayerNetworkSync : NetworkBehaviour
 
             var rec = GetComponent<InputRecorder>();
             if (rec != null) rec.enabled = false;
+
+            _controller.SetInputProvider(null);
         }
 
         // NetworkVariable 구독
@@ -100,6 +130,7 @@ public class PlayerNetworkSync : NetworkBehaviour
         // Owner: 로컬에서 분신 처치를 감지해 서버에 점수 알림
         if (IsOwner)
             EventBus.OnEntityDied += OnEntityDiedLocal;
+
     }
 
     public override void OnNetworkDespawn()
@@ -110,6 +141,7 @@ public class PlayerNetworkSync : NetworkBehaviour
 
         if (IsOwner)
             EventBus.OnEntityDied -= OnEntityDiedLocal;
+
     }
 
     // ── NetworkVariable 콜백 ────────────────────────────────
@@ -139,7 +171,7 @@ public class PlayerNetworkSync : NetworkBehaviour
         if (killerId != _stats.playerId) return;
         if (victimId < 100) return;
 
-        CloneKilledServerRpc();
+        CloneKilledRpc(victimId, killerId);
     }
 
     // ════════════════════════════════════════════════════════
@@ -150,38 +182,80 @@ public class PlayerNetworkSync : NetworkBehaviour
     [ServerRpc]
     public void AttackServerRpc(Vector3 aimDir)
     {
+        if (_serverDead) return;
+        if (!IsMatchPlaying()) return;
+        if (Time.time < _nextServerAttackTime) return;
+
+        _nextServerAttackTime = Time.time + Mathf.Max(0.05f, _stats.attackCooldown);
+
+        if (aimDir.sqrMagnitude < 0.001f)
+            aimDir = transform.forward;
+        else
+            aimDir.Normalize();
+
         Vector3 center = transform.position + aimDir.normalized * _stats.attackRange;
         center.y = transform.position.y + 0.5f;
 
         // attackTargetMask 가 0(비어있음)이면 플레이어/분신 레이어 전체 허용
         int mask = attackTargetMask == 0 ? ~0 : (int)attackTargetMask;
         Collider[] hits = Physics.OverlapSphere(center, _stats.attackRadius, mask);
+        var damaged = new HashSet<KnockbackReceiver>();
+        bool hitAny = false;
 
         foreach (var col in hits)
         {
-            if (col.gameObject == gameObject) continue;
+            if (col.GetComponentInParent<PlayerNetworkSync>() == this) continue;
 
-            var receiver = col.GetComponent<KnockbackReceiver>();
+            var receiver = col.GetComponentInParent<KnockbackReceiver>();
             if (receiver == null) continue;
+            if (!damaged.Add(receiver)) continue;
 
             Vector3 dir = col.transform.position - transform.position;
             dir.y = 0f;
             if (dir.sqrMagnitude < 0.001f) dir = aimDir;
 
-            receiver.ApplyKnockback(dir.normalized, _stats.attackPower, _stats.playerId);
+            Vector3 knockbackDir = dir.normalized;
+            if (!receiver.ApplyKnockback(knockbackDir, _stats.attackPower, _stats.playerId))
+                continue;
+
+            hitAny = true;
 
             // 플레이어 적중 히트 점수 (+1)
-            if (col.GetComponent<PlayerNetworkSync>() != null)
+            var targetSync = col.GetComponentInParent<PlayerNetworkSync>();
+            if (targetSync != null)
+            {
                 AddNetScore(_stats.playerId, 1);
+
+                if (targetSync.OwnerClientId != NetworkManager.ServerClientId)
+                {
+                    targetSync.ApplyKnockbackOwnerClientRpc(
+                        knockbackDir,
+                        _stats.attackPower,
+                        _stats.playerId,
+                        TargetClient(targetSync.OwnerClientId));
+                }
+            }
         }
 
-        AttackVFXClientRpc(center);
+        AttackVFXClientRpc(center, hitAny);
     }
 
     /// <summary>플레이어 사망 알림. 서버에서 분신 생성 + 점수 + 리스폰 처리.</summary>
     [ServerRpc]
     public void DiedServerRpc(InputFrame[] frames, int killerId)
     {
+        if (_serverDead) return;
+        if (!IsMatchPlaying()) return;
+        _serverDead = true;
+        frames = SanitizeReplayFrames(frames);
+
+        Vector3 deathPos = transform.position;
+        SetAliveClientRpc(false);
+
+        killerId = _stats != null
+            ? _stats.GetRecentAttackerId(KillCreditWindowSeconds)
+            : -1;
+
         // 처치자 점수 (+5). 분신(ID >= 100)에게 죽은 경우 점수 없음.
         if (killerId >= 0 && killerId < 100)
             AddNetScore(killerId, 5);
@@ -190,19 +264,25 @@ public class PlayerNetworkSync : NetworkBehaviour
         int cloneId = 1000 + (int)OwnerClientId * 100
                            + (CloneManager.Instance?.ActiveCloneCount ?? 0);
 
-        SpawnCloneClientRpc(frames, transform.position, cloneId);
+        SpawnCloneClientRpc(frames, deathPos, cloneId);
 
         // 사망 이벤트 브로드캐스트 (KillFeed, ScoreSystem 등 EventBus 구독자 알림)
-        NotifyDiedClientRpc((int)OwnerClientId, transform.position, killerId);
+        NotifyDiedClientRpc((int)OwnerClientId, deathPos, killerId);
 
         StartCoroutine(RespawnAfterDelay(2f));
     }
 
     /// <summary>분신 처치 시 Owner → Server 점수 추가. GDD: 분신 처치 = +1.</summary>
-    [ServerRpc]
-    private void CloneKilledServerRpc()
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void CloneKilledRpc(int victimId, int killerId, RpcParams rpcParams = default)
     {
-        AddNetScore(_stats.playerId, 1);
+        int senderId = (int)rpcParams.Receive.SenderClientId;
+        if (!IsMatchPlaying()) return;
+        if (victimId < 100) return;
+        if (killerId != senderId) return;
+        if (!_creditedCloneKills.Add(victimId)) return;
+
+        AddNetScore(senderId, 1);
     }
 
     // ════════════════════════════════════════════════════════
@@ -214,8 +294,14 @@ public class PlayerNetworkSync : NetworkBehaviour
     public void SpawnCloneClientRpc(InputFrame[] frames, Vector3 deathPos, int cloneId)
     {
         var list = new List<InputFrame>(frames);
-        CloneManager.Instance?.SpawnClone(list);
+        CloneManager.Instance?.SpawnClone(list, deathPos, cloneId);
         // RaiseCloneSpawned 는 CloneManager.SpawnClone 내부에서 발행 — 중복 방지
+    }
+
+    [ClientRpc]
+    private void SetAliveClientRpc(bool alive)
+    {
+        ApplyAliveState(alive);
     }
 
     /// <summary>사망 이벤트를 모든 클라이언트에 브로드캐스트. KillFeed / ScoreSystem 구동.</summary>
@@ -227,16 +313,29 @@ public class PlayerNetworkSync : NetworkBehaviour
 
     /// <summary>공격 VFX + 히트음을 모든 클라이언트에 재생.</summary>
     [ClientRpc]
-    public void AttackVFXClientRpc(Vector3 center)
+    public void AttackVFXClientRpc(Vector3 center, bool hitAny)
     {
         VFXManager.Instance?.PlayAttack(center);
-        AudioManager.Instance?.PlayAttackHit();
+        if (hitAny) AudioManager.Instance?.PlayAttackHit();
+        else AudioManager.Instance?.PlayAttack();
+    }
+
+    [ClientRpc]
+    private void ApplyKnockbackOwnerClientRpc(
+        Vector3 direction,
+        float basePower,
+        int attackerId,
+        ClientRpcParams clientRpcParams = default)
+    {
+        if (!IsOwner) return;
+        GetComponent<KnockbackReceiver>()?.ApplyKnockback(direction, basePower, attackerId);
     }
 
     /// <summary>리스폰 처리: 위치/상태 초기화 후 활성화.</summary>
     [ClientRpc]
     private void RespawnClientRpc(Vector3 pos)
     {
+        ApplyAliveState(true);
         transform.position = pos;
         _stats.ResetKnockback();
         GetComponent<DeathDetector>()?.ResetDead();
@@ -244,8 +343,6 @@ public class PlayerNetworkSync : NetworkBehaviour
 
         var rb = GetComponent<Rigidbody>();
         if (rb != null) rb.linearVelocity = Vector3.zero;
-
-        gameObject.SetActive(true);
 
         // 리스폰 무적 (1.5초)
         _stats.StartInvincibility(1.5f);
@@ -262,6 +359,29 @@ public class PlayerNetworkSync : NetworkBehaviour
     public void ServerUpdateKnockback(float value)
     {
         if (IsServer) NetKnockback.Value = value;
+    }
+
+    private void ApplyAliveState(bool alive)
+    {
+        _controller?.SetAlive(alive);
+
+        if (_rb != null)
+        {
+            if (!alive) _rb.linearVelocity = Vector3.zero;
+            _rb.detectCollisions = alive;
+        }
+
+        if (_colliders != null)
+        {
+            foreach (var col in _colliders)
+                if (col != null) col.enabled = alive;
+        }
+
+        if (_renderers != null)
+        {
+            foreach (var renderer in _renderers)
+                if (renderer != null) renderer.enabled = alive;
+        }
     }
 
     /// <summary>특정 playerId(ClientId)의 NetScore 를 amount 만큼 증가.</summary>
@@ -282,9 +402,44 @@ public class PlayerNetworkSync : NetworkBehaviour
     {
         yield return new WaitForSeconds(delay);
 
-        if (!NetworkManager.Singleton.IsServer) yield break;
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) yield break;
 
         Vector3 pos = NeonNetworkManager.Net?.GetNextSpawnPoint() ?? Vector3.up;
+        _lastSpawnPosition = pos;
+        _serverDead = false;
+        NetKnockback.Value = 0f;
         RespawnClientRpc(pos);
+    }
+
+    private static bool IsMatchPlaying()
+    {
+        if (MatchNetworkManager.Instance != null)
+            return MatchNetworkManager.Instance.NetMatchState.Value == MatchState.Playing;
+        if (MatchManager.Instance != null)
+            return MatchManager.Instance.CurrentState == MatchState.Playing;
+        return true;
+    }
+
+    private static InputFrame[] SanitizeReplayFrames(InputFrame[] frames)
+    {
+        if (frames == null)
+            return System.Array.Empty<InputFrame>();
+        if (frames.Length <= MaxReplayFrames)
+            return frames;
+
+        var trimmed = new InputFrame[MaxReplayFrames];
+        System.Array.Copy(frames, frames.Length - MaxReplayFrames, trimmed, 0, MaxReplayFrames);
+        return trimmed;
+    }
+
+    private static ClientRpcParams TargetClient(ulong clientId)
+    {
+        return new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new[] { clientId }
+            }
+        };
     }
 }

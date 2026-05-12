@@ -23,6 +23,10 @@ public class MatchNetworkManager : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
+    private const float TimeSyncInterval = 0.1f;
+    private float _serverTimeRemaining;
+    private float _timeSyncTimer;
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -34,6 +38,9 @@ public class MatchNetworkManager : NetworkBehaviour
         NetMatchState.OnValueChanged     += OnMatchStateSync;
         NetTimeRemaining.OnValueChanged  += OnTimeSync;
 
+        OnMatchStateSync(NetMatchState.Value, NetMatchState.Value);
+        OnTimeSync(NetTimeRemaining.Value, NetTimeRemaining.Value);
+
         if (IsServer)
             StartCoroutine(RunMatch());
     }
@@ -44,15 +51,32 @@ public class MatchNetworkManager : NetworkBehaviour
         NetTimeRemaining.OnValueChanged  -= OnTimeSync;
     }
 
+    public override void OnDestroy()
+    {
+        base.OnDestroy();
+
+        if (Instance == this)
+            Instance = null;
+    }
+
     // ── 서버: 매치 진행 ──────────────────────────────────────
     void Update()
     {
         if (!IsServer) return;
         if (NetMatchState.Value != MatchState.Playing) return;
 
-        NetTimeRemaining.Value -= Time.deltaTime;
-        if (NetTimeRemaining.Value <= 0f)
+        _serverTimeRemaining -= Time.deltaTime;
+        _timeSyncTimer -= Time.deltaTime;
+
+        if (_timeSyncTimer <= 0f)
         {
+            _timeSyncTimer = TimeSyncInterval;
+            NetTimeRemaining.Value = Mathf.Max(0f, _serverTimeRemaining);
+        }
+
+        if (_serverTimeRemaining <= 0f)
+        {
+            _serverTimeRemaining = 0f;
             NetTimeRemaining.Value = 0f;
             EndMatch();
         }
@@ -61,7 +85,9 @@ public class MatchNetworkManager : NetworkBehaviour
     private IEnumerator RunMatch()
     {
         NetMatchState.Value     = MatchState.Countdown;
-        NetTimeRemaining.Value  = matchDuration;
+        _serverTimeRemaining    = matchDuration;
+        NetTimeRemaining.Value  = _serverTimeRemaining;
+        _timeSyncTimer          = TimeSyncInterval;
         yield return new WaitForSeconds(countdownSeconds);
         NetMatchState.Value = MatchState.Playing;
     }

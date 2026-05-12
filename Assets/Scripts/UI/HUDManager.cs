@@ -23,6 +23,7 @@ public class HUDManager : MonoBehaviour
 
     [Header("카운트다운")]
     [SerializeField] private TextMeshProUGUI countdownText;
+    [SerializeField] private float countdownSeconds = 3f;
 
     [Header("리스폰 대기")]
     [SerializeField] private TextMeshProUGUI respawnText;
@@ -46,14 +47,56 @@ public class HUDManager : MonoBehaviour
 
     // ── 리스폰 코루틴 ───────────────────────────────────────
     private Coroutine _respawnCoroutine;
+    private bool _countdownActive;
+    private float _countdownTimer;
 
     // ════════════════════════════════════════════════════════
     void Awake()
     {
+        EnsureRuntimeHud();
+
         _localPlayerId = 0;
         _idResolved    = false;
 
         if (respawnText != null) respawnText.gameObject.SetActive(false);
+    }
+
+    private void EnsureRuntimeHud()
+    {
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) canvas = RuntimeUIFactory.EnsureCanvas();
+        Transform root = canvas.transform;
+
+        if (timerText == null)
+            timerText = RuntimeUIFactory.CreateText(root, "TimerText_Runtime", "02:00", 38,
+                TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -42f), new Vector2(220f, 52f), Color.white);
+
+        if (knockbackText == null)
+            knockbackText = RuntimeUIFactory.CreateText(root, "KnockbackText_Runtime", "0%", 46,
+                TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(38f, 42f), new Vector2(180f, 56f), Color.white);
+
+        if (cloneCountText == null)
+            cloneCountText = RuntimeUIFactory.CreateText(root, "CloneCountText_Runtime", "CLONES  0", 24,
+                TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(38f, 92f), new Vector2(220f, 40f), new Color(0.2f, 0.9f, 1f));
+
+        if (countdownText == null)
+        {
+            countdownText = RuntimeUIFactory.CreateText(root, "CountdownText_Runtime", "", 88,
+                TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(520f, 120f), new Color(0f, 0.9f, 1f));
+            countdownText.gameObject.SetActive(false);
+        }
+
+        if (respawnText == null)
+        {
+            respawnText = RuntimeUIFactory.CreateText(root, "RespawnText_Runtime", "", 34,
+                TextAlignmentOptions.Center, new Vector2(0.5f, 0.18f), new Vector2(0.5f, 0.18f),
+                Vector2.zero, new Vector2(420f, 60f), new Color(1f, 0.85f, 0.2f));
+            respawnText.gameObject.SetActive(false);
+        }
     }
 
     void Start()
@@ -100,19 +143,28 @@ public class HUDManager : MonoBehaviour
 
         if (timerText == null) return;
 
-        if (MatchManager.Instance != null)
-            timerText.text = MatchManager.Instance.GetFormattedTime();
-        else if (MatchNetworkManager.Instance != null)
+        if (MatchNetworkManager.Instance != null)
             timerText.text = MatchNetworkManager.Instance.GetFormattedTime();
+        else if (MatchManager.Instance != null)
+            timerText.text = MatchManager.Instance.GetFormattedTime();
+
+        if (_countdownActive && countdownText != null)
+        {
+            _countdownTimer = Mathf.Max(0f, _countdownTimer - Time.unscaledDeltaTime);
+            int count = Mathf.Clamp(Mathf.CeilToInt(_countdownTimer), 1, 3);
+            countdownText.text = count.ToString();
+        }
     }
 
     private void TryResolvePlayerId()
     {
-        var netSync = FindFirstObjectByType<PlayerNetworkSync>();
-        if (netSync != null && netSync.IsSpawned && netSync.IsOwner)
+        var syncs = FindObjectsByType<PlayerNetworkSync>(FindObjectsSortMode.None);
+        foreach (var netSync in syncs)
         {
+            if (netSync == null || !netSync.IsSpawned || !netSync.IsOwner) continue;
             _localPlayerId = (int)netSync.OwnerClientId;
-            _idResolved    = true;
+            _idResolved = true;
+            return;
         }
     }
 
@@ -125,17 +177,22 @@ public class HUDManager : MonoBehaviour
 
         if (s == MatchState.Countdown)
         {
+            CancelInvoke(nameof(HideCountdown));
+            _countdownActive = true;
+            _countdownTimer = countdownSeconds;
             countdownText.gameObject.SetActive(true);
-            countdownText.text = "READY...";
+            countdownText.text = Mathf.CeilToInt(countdownSeconds).ToString();
         }
         else if (s == MatchState.Playing)
         {
+            _countdownActive = false;
             countdownText.gameObject.SetActive(true);
             countdownText.text = "FIGHT!";
             Invoke(nameof(HideCountdown), 0.8f);
         }
         else
         {
+            _countdownActive = false;
             countdownText.gameObject.SetActive(false);
         }
     }

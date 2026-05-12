@@ -26,6 +26,8 @@ public class KillFeedUI : MonoBehaviour
     // ════════════════════════════════════════════════════════
     void Awake()
     {
+        EnsureRuntimeFeed();
+
         if (feedSlots != null)
         {
             _coroutines = new Coroutine[feedSlots.Length];
@@ -34,12 +36,32 @@ public class KillFeedUI : MonoBehaviour
         }
     }
 
+    private void EnsureRuntimeFeed()
+    {
+        if (feedSlots != null && feedSlots.Length > 0) return;
+
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) canvas = RuntimeUIFactory.EnsureCanvas();
+
+        feedSlots = new TextMeshProUGUI[4];
+        for (int i = 0; i < feedSlots.Length; i++)
+        {
+            feedSlots[i] = RuntimeUIFactory.CreateText(canvas.transform, $"KillFeed_Runtime_{i + 1}", "", 23,
+                TextAlignmentOptions.Right, new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-36f, -82f - i * 32f), new Vector2(520f, 30f), Color.white);
+        }
+    }
+
     void Start()
     {
         // 싱글=0, 멀티=OwnerClientId (지연 초기화)
-        var netSync = FindFirstObjectByType<PlayerNetworkSync>();
-        if (netSync != null && netSync.IsOwner)
+        var syncs = FindObjectsByType<PlayerNetworkSync>(FindObjectsSortMode.None);
+        foreach (var netSync in syncs)
+        {
+            if (netSync == null || !netSync.IsSpawned || !netSync.IsOwner) continue;
             _localPlayerId = (int)netSync.OwnerClientId;
+            return;
+        }
     }
 
     void OnEnable()  => EventBus.OnEntityDied += OnEntityDied;
@@ -55,11 +77,11 @@ public class KillFeedUI : MonoBehaviour
         {
             string killer     = EntityLabel(killerId);
             string killerColor = killerId == _localPlayerId ? "#60FF90" : "#FF6060";
-            msg = $"<color={killerColor}>{killer}</color>  ▶  {victim}";
+            msg = $"<color={killerColor}>{killer}</color>  KO  {victim}";
         }
         else
         {
-            msg = $"{victim}  낙사";
+            msg = $"{victim}  FELL";
         }
 
         ShowMessage(msg);

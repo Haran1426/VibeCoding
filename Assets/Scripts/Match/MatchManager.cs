@@ -22,7 +22,22 @@ public class MatchManager : MonoBehaviour
         Instance = this;
     }
 
-    void Start() => StartCoroutine(RunMatch());
+    void Start()
+    {
+        if (IsNetworkMatch())
+        {
+            enabled = false;
+            return;
+        }
+
+        StartCoroutine(RunMatch());
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
 
     void Update()
     {
@@ -71,6 +86,10 @@ public class MatchManager : MonoBehaviour
 
     public void GoToMainMenu()
     {
+        if (Unity.Netcode.NetworkManager.Singleton != null &&
+            Unity.Netcode.NetworkManager.Singleton.IsListening)
+            Unity.Netcode.NetworkManager.Singleton.Shutdown();
+
         EventBus.Clear();
         Time.timeScale = 1f;
         SceneManager.LoadScene("MenuScene");
@@ -82,4 +101,8 @@ public class MatchManager : MonoBehaviour
         int s = Mathf.FloorToInt(TimeRemaining % 60f);
         return string.Format("{0:00}:{1:00}", m, s);
     }
+
+    private static bool IsNetworkMatch() =>
+        Unity.Netcode.NetworkManager.Singleton != null &&
+        Unity.Netcode.NetworkManager.Singleton.IsListening;
 }

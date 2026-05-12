@@ -14,10 +14,28 @@ public class VFXManager : MonoBehaviour
     [SerializeField] private GameObject expOrbAbsorbPrefab;
     [SerializeField] private GameObject levelUpPrefab;
 
+    private int _eventBusClearVersion = -1;
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+    }
+
+    void OnEnable() => SubscribeEventBus();
+    void OnDisable() => EventBus.OnEntityDied -= OnEntityDied;
+
+    void Update()
+    {
+        if (_eventBusClearVersion != EventBus.ClearVersion)
+            SubscribeEventBus();
+    }
+
+    private void SubscribeEventBus()
+    {
+        EventBus.OnEntityDied -= OnEntityDied;
+        EventBus.OnEntityDied += OnEntityDied;
+        _eventBusClearVersion = EventBus.ClearVersion;
     }
 
     // ── Public API ───────────────────────────────────────────────
@@ -25,6 +43,42 @@ public class VFXManager : MonoBehaviour
     // ── Neon Rewind Arena 전용 ──────────────────────────────
     public void PlayAttack(Vector3 pos)
         => SpawnBurst(pos, new Color(1f, 0.9f, 0.1f), 10, 0.1f, 5f, 0.15f);
+
+    public void PlayImpact(Vector3 pos, float force)
+    {
+        float t = Mathf.InverseLerp(10f, 35f, force);
+        Color color = Color.Lerp(new Color(1f, 0.9f, 0.18f), new Color(1f, 0.16f, 0.45f), t);
+        int burstCount = Mathf.RoundToInt(Mathf.Lerp(12f, 34f, t));
+        float size = Mathf.Lerp(0.09f, 0.22f, t);
+        float speed = Mathf.Lerp(5f, 10.5f, t);
+        float lifetime = Mathf.Lerp(0.18f, 0.42f, t);
+
+        SpawnBurst(pos + Vector3.up * 0.7f, color, burstCount, size, speed, lifetime);
+
+        if (t >= 0.45f)
+        {
+            Color ringColor = Color.Lerp(new Color(0.2f, 0.95f, 1f), Color.white, t);
+            SpawnRing(pos + Vector3.up * 0.35f, ringColor, 40, 0.075f, Mathf.Lerp(8f, 13f, t), 0.32f);
+        }
+    }
+
+    public void PlayCloneSpawn(Vector3 pos)
+        => SpawnRing(pos + Vector3.up * 0.25f, new Color(0.15f, 0.95f, 1f), 44, 0.12f, 7f, 0.55f);
+
+    public void PlayDeathBurst(Vector3 pos, int entityId)
+    {
+        Color color = entityId >= 100
+            ? new Color(0.7f, 0.25f, 1f)
+            : new Color(1f, 0.2f, 0.45f);
+        SpawnBurst(pos + Vector3.up * 0.7f, color, entityId >= 100 ? 18 : 28, 0.16f, 7f, 0.45f);
+    }
+
+    private void OnEntityDied(int entityId, Vector3 pos, int killerId)
+    {
+        PlayDeathBurst(pos, entityId);
+        if (entityId >= 100)
+            AudioManager.Instance?.PlayAttackHit();
+    }
 
     // ── 기존 호환 ────────────────────────────────────────────
     public void PlayBulletHit(Vector3 pos, Color color)
@@ -134,10 +188,16 @@ public class VFXManager : MonoBehaviour
     private static void SetNeonRenderer(ParticleSystem ps, Color color)
     {
         var renderer = ps.GetComponent<ParticleSystemRenderer>();
-        Material mat = new Material(Shader.Find("Particles/Standard Unlit"));
-        if (mat.shader.name == "Hidden/InternalErrorShader")
-            mat = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
-        mat.SetColor("_Color", color);
+        Shader shader = Shader.Find("Particles/Standard Unlit");
+        if (shader == null || shader.name == "Hidden/InternalErrorShader")
+            shader = Shader.Find("Legacy Shaders/Particles/Additive");
+        if (shader == null || shader.name == "Hidden/InternalErrorShader")
+            shader = Shader.Find("Sprites/Default");
+        if (shader == null) return;
+
+        Material mat = new Material(shader);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
         renderer.material = mat;
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
     }

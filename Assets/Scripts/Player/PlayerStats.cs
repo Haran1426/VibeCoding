@@ -29,6 +29,7 @@ public class PlayerStats : MonoBehaviour
     // ── 런타임 상태 ──────────────────────────────────────────
     [HideInInspector] public float knockbackPercent = 0f;
     [HideInInspector] public int   lastHitBy        = -1;
+    private float _lastHitTime = float.NegativeInfinity;
 
     // ── 무적 ─────────────────────────────────────────────────
     private float         _invincibleTimer;
@@ -64,6 +65,7 @@ public class PlayerStats : MonoBehaviour
     {
         knockbackPercent = 0f;
         lastHitBy        = -1;
+        _lastHitTime     = float.NegativeInfinity;
         EventBus.RaiseKnockbackChanged(playerId, knockbackPercent);
     }
 
@@ -71,7 +73,14 @@ public class PlayerStats : MonoBehaviour
     {
         knockbackPercent += damage;
         lastHitBy         = attackerId;
+        _lastHitTime      = attackerId >= 0 ? Time.time : float.NegativeInfinity;
         EventBus.RaiseKnockbackChanged(playerId, knockbackPercent);
+    }
+
+    public int GetRecentAttackerId(float maxAgeSeconds)
+    {
+        if (lastHitBy < 0) return -1;
+        return Time.time - _lastHitTime <= maxAgeSeconds ? lastHitBy : -1;
     }
 
     public float GetKnockbackForce(float basePower)

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -33,7 +35,11 @@ public class PlayerController : MonoBehaviour
     // ── 점프 / 지면 ──────────────────────────────────────────
     [SerializeField] private float     groundCheckDist = 0.2f;
     [SerializeField] private LayerMask groundMask;
+    [SerializeField] private float     coyoteTime = 0.1f;
+    [SerializeField] private float     jumpBufferTime = 0.12f;
     private bool _isGrounded;
+    private float _coyoteTimer;
+    private float _jumpBufferTimer;
 
     // ── [버그1 픽스] 넉백 면역 ───────────────────────────────
     private float _knockbackTimer;
@@ -73,10 +79,14 @@ public class PlayerController : MonoBehaviour
         _cam = Camera.main;
 
         // MatchManager 가 없거나 이미 Playing 상태면 바로 활성화
-        if (MatchManager.Instance == null)
+        if (MatchNetworkManager.Instance != null)
+            _matchPlaying = MatchNetworkManager.Instance.NetMatchState.Value == MatchState.Playing;
+        else if (IsNetworkMatch())
+            _matchPlaying = false;
+        else if (MatchManager.Instance == null)
             _matchPlaying = true;
-        else if (MatchManager.Instance.CurrentState == MatchState.Playing)
-            _matchPlaying = true;
+        else
+            _matchPlaying = MatchManager.Instance.CurrentState == MatchState.Playing;
 
         // 게임패드가 뒤늦게 인식될 경우 재시도
         if (!_stats.isClone && _input == null)
@@ -115,6 +125,17 @@ public class PlayerController : MonoBehaviour
     // ── DIP: 런타임에 입력 교체 (분신용) ─────────────────────
     public void SetInputProvider(IInputProvider provider) => _input = provider;
 
+    public void SetAlive(bool alive)
+    {
+        _alive = alive;
+        if (alive) return;
+
+        _isDashing = false;
+        _dashActiveTimer = 0f;
+        _moveInput = Vector2.zero;
+        _aimInput = Vector2.zero;
+    }
+
     // ════════════════════════════════════════════════════════
     void Update()
     {
@@ -145,10 +166,23 @@ public class PlayerController : MonoBehaviour
             if (_dashActiveTimer <= 0f) _isDashing = false;
         }
 
-        // 점프
+        // Jump forgiveness keeps crowded online fights responsive.
         CheckGround();
-        if (_input.GetJumpDown() && _isGrounded)
+        _coyoteTimer = _isGrounded ? coyoteTime : Mathf.Max(0f, _coyoteTimer - Time.deltaTime);
+        _jumpBufferTimer = Mathf.Max(0f, _jumpBufferTimer - Time.deltaTime);
+
+        if (_input.GetJumpDown())
+            _jumpBufferTimer = jumpBufferTime;
+
+        if (_jumpBufferTimer > 0f && _coyoteTimer > 0f)
+        {
+            Vector3 velocity = _rb.linearVelocity;
+            if (velocity.y < 0f) velocity.y = 0f;
+            _rb.linearVelocity = velocity;
             _rb.AddForce(Vector3.up * _stats.jumpForce, ForceMode.Impulse);
+            _jumpBufferTimer = 0f;
+            _coyoteTimer = 0f;
+        }
 
         // 대시
         if (_input.GetDashDown() && !_isDashing && _dashCooldownTimer <= 0f)
@@ -174,6 +208,7 @@ public class PlayerController : MonoBehaviour
     void FixedUpdate()
     {
         if (!_alive || !_matchPlaying) return;
+        if (_input == null) return;
         if (_isDashing) return;
 
         // [버그1 픽스] 넉백 중에는 이동 코드가 velocity를 덮어쓰지 않음
@@ -223,25 +258,32 @@ public class PlayerController : MonoBehaviour
         Vector3 center = transform.position + aimDir * _stats.attackRange;
         center.y = transform.position.y + 0.5f;
 
-        Collider[] hits = Physics.OverlapSphere(center, _stats.attackRadius, attackTargetMask);
+        int mask = attackTargetMask == 0 ? ~0 : (int)attackTargetMask;
+        Collider[] hits = Physics.OverlapSphere(center, _stats.attackRadius, mask);
+        var damaged = new HashSet<KnockbackReceiver>();
+        bool hitAny = false;
         foreach (var col in hits)
         {
-            if (col.gameObject == gameObject) continue;
+            if (col.GetComponentInParent<PlayerController>() == this) continue;
 
-            var receiver = col.GetComponent<KnockbackReceiver>();
+            var receiver = col.GetComponentInParent<KnockbackReceiver>();
             if (receiver == null) continue;
+            if (!damaged.Add(receiver)) continue;
 
             Vector3 dir = (col.transform.position - transform.position);
             dir.y = 0f;
             if (dir.sqrMagnitude < 0.001f) dir = transform.forward;
 
-            receiver.ApplyKnockback(dir.normalized, _stats.attackPower, _stats.playerId);
+            if (!receiver.ApplyKnockback(dir.normalized, _stats.attackPower, _stats.playerId))
+                continue;
+
             ScoreSystem.Instance?.RegisterHit(_stats.playerId);
-            AudioManager.Instance?.PlayAttackHit();
+            hitAny = true;
         }
 
         VFXManager.Instance?.PlayAttack(center);
-        AudioManager.Instance?.PlayAttack();
+        if (hitAny) AudioManager.Instance?.PlayAttackHit();
+        else AudioManager.Instance?.PlayAttack();
     }
 
     // ── 카메라 기준 이동 방향 ─────────────────────────────────
@@ -255,4 +297,8 @@ public class PlayerController : MonoBehaviour
     }
 
     public Vector3 GetFacingDirection() => transform.forward;
+
+    private static bool IsNetworkMatch() =>
+        NetworkManager.Singleton != null &&
+        NetworkManager.Singleton.IsListening;
 }

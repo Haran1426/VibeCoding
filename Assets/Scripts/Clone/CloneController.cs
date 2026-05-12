@@ -24,9 +24,13 @@ public class CloneController : MonoBehaviour
     private CloneInput       _cloneInput;
     private Renderer[]       _renderers;
     private Material[]       _cachedMats;
+    private Rigidbody        _rb;
+    private DeathDetector    _deathDetector;
 
     private float _baseMoveSpeed;
     private float _baseDashSpeed;
+    private float _initialMoveSpeed;
+    private float _initialDashSpeed;
     private float _spawnTime;       // 분신 생성 시점 (Time.time)
     private float _matchStartTime;  // 매치 시작 시점
 
@@ -34,7 +38,11 @@ public class CloneController : MonoBehaviour
     {
         _pc        = GetComponent<PlayerController>();
         _stats     = GetComponent<PlayerStats>();
+        _rb        = GetComponent<Rigidbody>();
+        _deathDetector = GetComponent<DeathDetector>();
         _renderers = GetComponentsInChildren<Renderer>();
+        _initialMoveSpeed = _stats.moveSpeed;
+        _initialDashSpeed = _stats.dashSpeed;
 
         _cachedMats = new Material[_renderers.Length];
         for (int i = 0; i < _renderers.Length; i++)
@@ -76,15 +84,20 @@ public class CloneController : MonoBehaviour
         transform.position = spawnPos;
         _stats.isClone     = true;
         _stats.playerId    = cloneId;
+        _stats.moveSpeed   = _initialMoveSpeed;
+        _stats.dashSpeed   = _initialDashSpeed;
         _stats.ResetKnockback();
+        if (_rb != null) _rb.linearVelocity = Vector3.zero;
 
         // 기본 속도 저장 (가속 계산 기준)
         _baseMoveSpeed = _stats.moveSpeed;
         _baseDashSpeed = _stats.dashSpeed;
         _spawnTime     = Time.time;
+        _matchStartTime = ResolveMatchStartTime();
 
         _cloneInput = new CloneInput(frames);
         _pc.SetInputProvider(_cloneInput);
+        _pc.SetAlive(true);
 
         // 색상 적용 (캐싱된 Material 재사용)
         for (int i = 0; i < _cachedMats.Length; i++)
@@ -95,8 +108,35 @@ public class CloneController : MonoBehaviour
                     new Color(color.r, color.g, color.b) * 0.4f);
         }
 
-        GetComponent<DeathDetector>()?.ResetDead();
+        _deathDetector?.ResetDead();
         gameObject.SetActive(true);
+    }
+
+    public void PrepareForPool()
+    {
+        if (_rb != null) _rb.linearVelocity = Vector3.zero;
+        _pc.SetAlive(false);
+        _cloneInput = null;
+        _deathDetector?.ResetDead();
+    }
+
+    private static float ResolveMatchStartTime()
+    {
+        const float assumedMatchDuration = 120f;
+
+        if (MatchNetworkManager.Instance != null)
+        {
+            float elapsed = Mathf.Clamp(assumedMatchDuration - MatchNetworkManager.Instance.TimeRemaining, 0f, assumedMatchDuration);
+            return Time.time - elapsed;
+        }
+
+        if (MatchManager.Instance != null)
+        {
+            float elapsed = Mathf.Clamp(assumedMatchDuration - MatchManager.Instance.TimeRemaining, 0f, assumedMatchDuration);
+            return Time.time - elapsed;
+        }
+
+        return Time.time;
     }
 
     // Built-in RP / URP 자동 감지 투명 머티리얼 생성

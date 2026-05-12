@@ -9,6 +9,9 @@ public class CloneInput : IInputProvider
 {
     private readonly List<InputFrame> _frames;
     private int _index;
+    private int _jumpConsumedIndex = -1;
+    private int _dashConsumedIndex = -1;
+    private int _attackConsumedIndex = -1;
 
     public bool IsFinished => _index >= _frames.Count;
 
@@ -26,7 +29,8 @@ public class CloneInput : IInputProvider
     {
         if (IsFinished) return Vector2.zero;
         var f = _frames[_index];
-        return new Vector2(f.moveX, f.moveY);
+        Vector2 move = new Vector2(f.moveX, f.moveY);
+        return move.sqrMagnitude > 1f ? move.normalized : move;
     }
 
     public Vector2 GetAimInput()
@@ -36,7 +40,28 @@ public class CloneInput : IInputProvider
         return new Vector2(f.aimX, f.aimZ);
     }
 
-    public bool GetJumpDown()   => !IsFinished && _frames[_index].jumpDown;
-    public bool GetDashDown()   => !IsFinished && _frames[_index].dashDown;
-    public bool GetAttackDown() => !IsFinished && _frames[_index].attackDown;
+    public bool GetJumpDown()
+    {
+        if (IsFinished) return false;
+        return ConsumeButton(_frames[_index].jumpDown, ref _jumpConsumedIndex);
+    }
+
+    public bool GetDashDown()
+    {
+        if (IsFinished) return false;
+        return ConsumeButton(_frames[_index].dashDown, ref _dashConsumedIndex);
+    }
+
+    public bool GetAttackDown()
+    {
+        if (IsFinished) return false;
+        return ConsumeButton(_frames[_index].attackDown, ref _attackConsumedIndex);
+    }
+
+    private bool ConsumeButton(bool pressed, ref int consumedIndex)
+    {
+        if (IsFinished || !pressed || consumedIndex == _index) return false;
+        consumedIndex = _index;
+        return true;
+    }
 }

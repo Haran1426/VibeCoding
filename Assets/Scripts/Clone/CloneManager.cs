@@ -59,6 +59,7 @@ public class CloneManager : MonoBehaviour
         {
             _activeClones.Remove(dead);
             ReturnToPool(dead);
+            EventBus.RaiseCloneSpawned(_activeClones.Count);
             return;
         }
 
@@ -69,6 +70,16 @@ public class CloneManager : MonoBehaviour
     /// RespawnManager 가 플레이어 사망 시 기록을 넘겨주면 호출합니다.
     /// </summary>
     public void SpawnClone(List<InputFrame> frames)
+    {
+        SpawnClone(frames, GetSpawnPoint(), _cloneIdCounter);
+    }
+
+    public void SpawnClone(List<InputFrame> frames, Vector3 spawnPos)
+    {
+        SpawnClone(frames, spawnPos, _cloneIdCounter);
+    }
+
+    public void SpawnClone(List<InputFrame> frames, Vector3 spawnPos, int cloneId)
     {
         if (frames == null || frames.Count == 0) return;
 
@@ -83,15 +94,17 @@ public class CloneManager : MonoBehaviour
         CloneController clone = GetFromPool();
         if (clone == null) return;
 
-        Vector3 spawnPos = GetSpawnPoint();
         Color   color    = CloneColors[_colorIndex % CloneColors.Length];
-        int     id       = _cloneIdCounter++;
         _colorIndex++;
 
-        clone.Init(frames, spawnPos, id, color);
+        if (cloneId >= _cloneIdCounter)
+            _cloneIdCounter = cloneId + 1;
+
+        clone.Init(frames, spawnPos, cloneId, color);
         _activeClones.Add(clone);
 
         EventBus.RaiseCloneSpawned(_activeClones.Count);
+        VFXManager.Instance?.PlayCloneSpawn(spawnPos);
         AudioManager.Instance?.PlayCloneSpawn();
     }
 
@@ -103,14 +116,42 @@ public class CloneManager : MonoBehaviour
             var c = _pool.Dequeue();
             return c;
         }
-        if (clonePrefab == null) return null;
-        GameObject go = Instantiate(clonePrefab);
+        GameObject go = clonePrefab != null
+            ? Instantiate(clonePrefab)
+            : CreateRuntimeClone();
         go.SetActive(false);
         return go.GetComponent<CloneController>();
     }
 
+    private static GameObject CreateRuntimeClone()
+    {
+        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        go.name = "RuntimeClone";
+        go.SetActive(false);
+
+        var rb = go.GetComponent<Rigidbody>();
+        if (rb == null) rb = go.AddComponent<Rigidbody>();
+        rb.useGravity = true;
+        rb.freezeRotation = true;
+        rb.linearDamping = 4f;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+
+        if (go.GetComponent<PlayerStats>() == null) go.AddComponent<PlayerStats>();
+        if (go.GetComponent<PlayerController>() == null) go.AddComponent<PlayerController>();
+        if (go.GetComponent<DeathDetector>() == null) go.AddComponent<DeathDetector>();
+        if (go.GetComponent<KnockbackReceiver>() == null) go.AddComponent<KnockbackReceiver>();
+        if (go.GetComponent<CloneController>() == null) go.AddComponent<CloneController>();
+
+        int cloneLayer = LayerMask.NameToLayer("Clone");
+        if (cloneLayer >= 0) go.layer = cloneLayer;
+
+        return go;
+    }
+
     private void ReturnToPool(CloneController clone)
     {
+        clone.PrepareForPool();
         clone.gameObject.SetActive(false);
         _pool.Enqueue(clone);
     }
@@ -120,6 +161,12 @@ public class CloneManager : MonoBehaviour
         if (spawnPoints != null && spawnPoints.Length > 0)
             return spawnPoints[Random.Range(0, spawnPoints.Length)].position;
         return new Vector3(Random.Range(-5f, 5f), 0.5f, Random.Range(-5f, 5f));
+    }
+
+    public void SetSpawnPoints(Transform[] points)
+    {
+        if (points == null || points.Length == 0) return;
+        spawnPoints = points;
     }
 
     public int ActiveCloneCount => _activeClones.Count;

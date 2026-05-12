@@ -45,6 +45,8 @@ public class InputRecorder : MonoBehaviour
         _frames.Add(_snapCapture.GetSnapshot()); // 소비 전 스냅샷 사용
     }
 
+    public void SetSnapshotCapture(ISnapshotCapture capture) => _snapCapture = capture;
+
     /// <summary>현재까지 기록된 프레임 목록 반환 (복사본)</summary>
     public List<InputFrame> GetRecording() => new List<InputFrame>(_frames);
 

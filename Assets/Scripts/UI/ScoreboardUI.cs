@@ -36,14 +36,86 @@ public class ScoreboardUI : MonoBehaviour
 
     private int   _localPlayerId = 0;
     private bool  _idResolved    = false;
+    private bool  _networkCallbacksSubscribed = false;
     private float _retryTimer    = 0f;
     private const float RetryInterval = 0.5f;
 
     // ════════════════════════════════════════════════════════
     void Awake()
     {
+        EnsureRuntimeRows();
+
         foreach (var row in rows)
             row?.root?.SetActive(false);
+    }
+
+    private void EnsureRuntimeRows()
+    {
+        bool needsRuntimeRows = rows == null || rows.Length < 4;
+        if (!needsRuntimeRows)
+        {
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (rows[i] == null || rows[i].root == null)
+                {
+                    needsRuntimeRows = true;
+                    break;
+                }
+            }
+        }
+
+        if (!needsRuntimeRows) return;
+
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) canvas = RuntimeUIFactory.EnsureCanvas();
+
+        var panel = RuntimeUIFactory.CreatePanel(canvas.transform, "Scoreboard_Runtime",
+            new Color(0.02f, 0.03f, 0.05f, 0.74f),
+            new Vector2(1f, 1f), new Vector2(1f, 1f),
+            new Vector2(-160f, -96f), new Vector2(260f, 152f));
+
+        var panelRect = panel.GetComponent<RectTransform>();
+        panelRect.pivot = new Vector2(1f, 1f);
+
+        rows = new ScoreRow[4];
+        for (int i = 0; i < rows.Length; i++)
+        {
+            var rowGo = new GameObject($"ScoreRow_Runtime_{i + 1}");
+            rowGo.transform.SetParent(panel.transform, false);
+
+            var rowRect = rowGo.AddComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0f, 1f);
+            rowRect.anchorMax = new Vector2(1f, 1f);
+            rowRect.pivot = new Vector2(0.5f, 1f);
+            rowRect.anchoredPosition = new Vector2(0f, -10f - i * 34f);
+            rowRect.sizeDelta = new Vector2(-20f, 30f);
+
+            var dotGo = new GameObject("ColorDot");
+            dotGo.transform.SetParent(rowGo.transform, false);
+            var dotRect = dotGo.AddComponent<RectTransform>();
+            dotRect.anchorMin = new Vector2(0f, 0.5f);
+            dotRect.anchorMax = new Vector2(0f, 0.5f);
+            dotRect.anchoredPosition = new Vector2(14f, 0f);
+            dotRect.sizeDelta = new Vector2(12f, 12f);
+            var dot = dotGo.AddComponent<Image>();
+            dot.raycastTarget = false;
+
+            var name = RuntimeUIFactory.CreateText(rowGo.transform, "Name", "P1", 20,
+                TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(1f, 1f),
+                new Vector2(58f, 0f), new Vector2(-86f, 0f), Color.white);
+
+            var score = RuntimeUIFactory.CreateText(rowGo.transform, "Score", "0", 22,
+                TextAlignmentOptions.Right, new Vector2(1f, 0f), new Vector2(1f, 1f),
+                new Vector2(-22f, 0f), new Vector2(58f, 0f), Color.white);
+
+            rows[i] = new ScoreRow
+            {
+                root = rowGo,
+                colorDot = dot,
+                nameText = name,
+                scoreText = score
+            };
+        }
     }
 
     void Start()
@@ -72,6 +144,9 @@ public class ScoreboardUI : MonoBehaviour
 
     void Update()
     {
+        if (IsMultiplayer() && !_networkCallbacksSubscribed)
+            SubscribeNetworkCallbacks();
+
         if (_idResolved) return;
 
         _retryTimer += Time.deltaTime;
@@ -93,10 +168,18 @@ public class ScoreboardUI : MonoBehaviour
             return;
         }
 
-        var netSync = FindFirstObjectByType<PlayerNetworkSync>();
-        if (netSync == null || !netSync.IsSpawned || !netSync.IsOwner) return;
+        PlayerNetworkSync ownerSync = null;
+        var syncs = FindObjectsByType<PlayerNetworkSync>(FindObjectsSortMode.None);
+        foreach (var netSync in syncs)
+        {
+            if (netSync == null || !netSync.IsSpawned || !netSync.IsOwner) continue;
+            ownerSync = netSync;
+            break;
+        }
 
-        _localPlayerId = (int)netSync.OwnerClientId;
+        if (ownerSync == null) return;
+
+        _localPlayerId = (int)ownerSync.OwnerClientId;
         _idResolved    = true;
 
         // 현재 접속된 모든 플레이어 일괄 등록
@@ -112,16 +195,18 @@ public class ScoreboardUI : MonoBehaviour
 
     private void SubscribeNetworkCallbacks()
     {
-        if (!IsMultiplayer()) return;
+        if (!IsMultiplayer() || _networkCallbacksSubscribed) return;
         NetworkManager.Singleton.OnClientConnectedCallback  += OnPlayerJoined;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnPlayerLeft;
+        _networkCallbacksSubscribed = true;
     }
 
     private void UnsubscribeNetworkCallbacks()
     {
-        if (NetworkManager.Singleton == null) return;
+        if (NetworkManager.Singleton == null || !_networkCallbacksSubscribed) return;
         NetworkManager.Singleton.OnClientConnectedCallback  -= OnPlayerJoined;
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnPlayerLeft;
+        _networkCallbacksSubscribed = false;
     }
 
     private void OnPlayerJoined(ulong clientId)

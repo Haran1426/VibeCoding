@@ -56,7 +56,7 @@ public class RespawnManager : MonoBehaviour
         var recorder = target.GetComponent<InputRecorder>();
         if (recorder != null)
         {
-            CloneManager.Instance?.SpawnClone(recorder.GetRecording());
+            CloneManager.Instance?.SpawnClone(recorder.GetRecording(), pos);
             recorder.ClearRecording();
         }
 
@@ -101,5 +101,11 @@ public class RespawnManager : MonoBehaviour
         if (spawnPoints != null && spawnPoints.Length > 0)
             return spawnPoints[Random.Range(0, spawnPoints.Length)].position;
         return new Vector3(0f, 2.5f, 0f);
+    }
+
+    public void SetSpawnPoints(Transform[] points)
+    {
+        if (points == null || points.Length == 0) return;
+        spawnPoints = points;
     }
 }

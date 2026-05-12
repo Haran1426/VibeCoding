@@ -36,10 +36,10 @@ public class KnockbackReceiver : MonoBehaviour
     }
 
     /// <summary>넉백 적용. direction: 수평 방향(normalized)</summary>
-    public void ApplyKnockback(Vector3 direction, float basePower, int attackerId)
+    public bool ApplyKnockback(Vector3 direction, float basePower, int attackerId)
     {
         // 무적 중이면 완전 무시
-        if (_stats != null && _stats.IsInvincible) return;
+        if (_stats != null && _stats.IsInvincible) return false;
 
         _stats.AddKnockback(basePower * 0.6f, attackerId);
 
@@ -56,14 +56,18 @@ public class KnockbackReceiver : MonoBehaviour
 
         // 피격 플래시
         _visuals?.PlayHitFlash();
+        VFXManager.Instance?.PlayImpact(transform.position, force);
+        HitStopManager.Instance?.Pulse(force);
 
         // 카메라 쉐이크 (강한 넉백만)
         if (force >= shakeThreshold)
         {
             float shakeMag = Mathf.Clamp(force * 0.012f, 0.05f, 0.35f);
             ArenaCamera.Instance?.Shake(0.22f, shakeMag);
+            AudioManager.Instance?.PlayHeavyImpact();
         }
 
         AudioManager.Instance?.PlayPlayerHurt();
+        return true;
     }
 }

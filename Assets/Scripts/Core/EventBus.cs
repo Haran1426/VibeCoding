@@ -7,6 +7,8 @@ using System.Collections.Generic;
 /// </summary>
 public static class EventBus
 {
+    public static int ClearVersion { get; private set; }
+
     // ── Match ────────────────────────────────────────────────
     public static event Action<MatchState>          OnMatchStateChanged;
     public static event Action                      OnMatchStarted;
@@ -36,6 +38,7 @@ public static class EventBus
 
     public static void Clear()
     {
+        ClearVersion++;
         OnMatchStateChanged = null;
         OnMatchStarted      = null;
         OnMatchEnded        = null;

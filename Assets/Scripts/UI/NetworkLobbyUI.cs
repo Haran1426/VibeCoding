@@ -1,83 +1,66 @@
+using TMPro;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
-/// <summary>
-/// 멀티플레이어 로비 UI + 네트워크 연결 처리.
-///
-/// 흐름:
-///   [접속 전] Host 버튼 / IP 입력 + Join 버튼
-///       ↓ Host 성공
-///   [대기 중] 플레이어 수 표시 + 게임 시작 버튼 (호스트만)
-///       ↓ 클라이언트 Join 성공
-///   [대기 중] "호스트 시작 대기" 메시지
-///       ↓ 호스트 Start 버튼
-///   ArenaScene 로드 (NetworkManager.SceneManager)
-///
-/// 뒤로가기: MenuManager.ShowMain() 으로 돌아감
-/// </summary>
 public class NetworkLobbyUI : MonoBehaviour
 {
-    // ── 최상위 패널 ──────────────────────────────────────────
-    [Header("패널")]
-    [SerializeField] private GameObject lobbyRoot;   // 로비 전체 루트
+    [Header("Runtime lobby")]
+    [SerializeField] private bool rebuildLobbyUIAtRuntime = false;
 
-    // ── 접속 전 UI ───────────────────────────────────────────
-    [Header("접속 전")]
-    [SerializeField] private GameObject      connectPanel;
-    [SerializeField] private Button          hostButton;
-    [SerializeField] private TMP_InputField  ipInputField;
-    [SerializeField] private Button          joinButton;
-    [SerializeField] private Button          connectBackButton;
+    [Header("Panels")]
+    [SerializeField] private GameObject lobbyRoot;
+    [SerializeField] private GameObject connectPanel;
+    [SerializeField] private GameObject waitingPanel;
+
+    [Header("Connect")]
+    [SerializeField] private Button hostButton;
+    [SerializeField] private TMP_InputField ipInputField;
+    [SerializeField] private Button joinButton;
+    [SerializeField] private Button connectBackButton;
     [SerializeField] private TextMeshProUGUI connectStatusText;
 
-    // ── 대기 중 UI ───────────────────────────────────────────
-    [Header("대기 중")]
-    [SerializeField] private GameObject      waitingPanel;
-    [SerializeField] private TextMeshProUGUI playerCountText;    // "플레이어  2 / 4"
-    [SerializeField] private TextMeshProUGUI waitingStatusText;  // 상태 메시지
-    [SerializeField] private Button          startButton;        // 호스트만 보임
-    [SerializeField] private Button          waitingCancelButton;
+    [Header("Waiting")]
+    [SerializeField] private TextMeshProUGUI playerCountText;
+    [SerializeField] private TextMeshProUGUI waitingStatusText;
+    [SerializeField] private Button startButton;
+    [SerializeField] private Button waitingCancelButton;
 
-    // ── 설정 ─────────────────────────────────────────────────
-    [Header("설정")]
+    [Header("Network")]
     [SerializeField] private string arenaSceneName = "ArenaScene";
-    [SerializeField] private ushort port           = 7777;
-    [SerializeField] private int    minPlayersToStart = 2;   // 시작 가능 최소 인원
-    [SerializeField] private float  joinTimeoutSec  = 10f;   // 접속 시도 타임아웃
+    [SerializeField] private ushort port = 7777;
+    [SerializeField] private int minPlayersToStart = 2;
+    [SerializeField] private float joinTimeoutSec = 10f;
 
-    // ── 내부 상태 ────────────────────────────────────────────
     private System.Action _onBack;
-    private bool  _joiningAsClient;
+    private bool _joiningAsClient;
     private float _joinTimer;
+    private bool _matchStarted;
+    private bool _networkCallbacksRegistered;
 
-    // ════════════════════════════════════════════════════════
-    void Awake()
+    private void Awake()
     {
-        hostButton?.onClick.AddListener(OnHostClicked);
-        joinButton?.onClick.AddListener(OnJoinClicked);
-        connectBackButton?.onClick.AddListener(OnConnectBackClicked);
-        startButton?.onClick.AddListener(OnStartClicked);
-        waitingCancelButton?.onClick.AddListener(OnWaitingCancelClicked);
+        if (rebuildLobbyUIAtRuntime)
+            EnsureRuntimeLobbyUI();
 
+        BindButtons();
         lobbyRoot?.SetActive(false);
     }
 
-    void OnDestroy() => UnsubscribeNetworkCallbacks();
-
-    // ════════════════════════════════════════════════════════
-    //  외부 진입점 (MenuManager 에서 호출)
-    // ════════════════════════════════════════════════════════
+    private void OnDestroy() => UnsubscribeNetworkCallbacks();
 
     public void ShowLobby(System.Action onBack)
     {
+        if (rebuildLobbyUIAtRuntime)
+            EnsureRuntimeLobbyUI();
+
+        BindButtons();
         _onBack = onBack;
         lobbyRoot?.SetActive(true);
         ShowConnectPanel();
-        SetConnectStatus("호스트를 시작하거나 IP 를 입력해 참가하세요.");
+        SetConnectStatus("Start a host or join by IP.");
     }
 
     public void HideLobby()
@@ -86,17 +69,14 @@ public class NetworkLobbyUI : MonoBehaviour
         Cleanup();
     }
 
-    // ════════════════════════════════════════════════════════
-    //  패널 전환
-    // ════════════════════════════════════════════════════════
-
     private void ShowConnectPanel()
     {
         connectPanel?.SetActive(true);
         waitingPanel?.SetActive(false);
         SetButtonsInteractable(true);
         _joiningAsClient = false;
-        _joinTimer       = 0f;
+        _joinTimer = 0f;
+        _matchStarted = false;
     }
 
     private void ShowWaitingPanel(bool isHost)
@@ -107,78 +87,89 @@ public class NetworkLobbyUI : MonoBehaviour
         if (startButton != null)
             startButton.gameObject.SetActive(isHost);
 
+        SetWaitingStatus(isHost
+            ? "Waiting for one more player..."
+            : "Connected. Waiting for host to start the match.");
         RefreshPlayerCount();
     }
 
-    // ════════════════════════════════════════════════════════
-    //  버튼 핸들러
-    // ════════════════════════════════════════════════════════
-
     private void OnHostClicked()
     {
-        SetConnectStatus("호스트 시작 중...");
+        if (NetworkManager.Singleton == null)
+        {
+            SetConnectStatus("Network manager is not ready.");
+            return;
+        }
+
+        SetConnectStatus("Starting host...");
         SetButtonsInteractable(false);
 
         ConfigureTransport("0.0.0.0");
-        NetworkManager.Singleton.ConnectionApprovalCallback  = OnApproveConnection;
-        NetworkManager.Singleton.OnClientConnectedCallback  += OnClientConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+        RegisterNetworkCallbacks(includeApproval: true);
 
         if (NetworkManager.Singleton.StartHost())
         {
             ShowWaitingPanel(isHost: true);
-            SetWaitingStatus("플레이어를 기다리는 중...");
+            SetWaitingStatus("Waiting for players...");
         }
         else
         {
-            SetConnectStatus("호스트 시작 실패. 다시 시도하세요.");
+            UnsubscribeNetworkCallbacks();
+            SetConnectStatus("Host failed. Try again.");
             SetButtonsInteractable(true);
         }
     }
 
     private void OnJoinClicked()
     {
+        if (NetworkManager.Singleton == null)
+        {
+            SetConnectStatus("Network manager is not ready.");
+            return;
+        }
+
         string ip = ipInputField != null ? ipInputField.text.Trim() : "";
         if (string.IsNullOrEmpty(ip)) ip = "127.0.0.1";
 
         if (!IsValidAddress(ip))
         {
-            SetConnectStatus("올바른 IP 주소를 입력하세요. (예: 192.168.0.1)");
+            SetConnectStatus("Enter a valid IP address. Example: 192.168.0.1");
             return;
         }
 
-        SetConnectStatus($"연결 중... ({ip}:{port})");
+        SetConnectStatus($"Connecting... ({ip}:{port})");
         SetButtonsInteractable(false);
 
         ConfigureTransport(ip);
-        NetworkManager.Singleton.OnClientConnectedCallback  += OnClientConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+        RegisterNetworkCallbacks(includeApproval: false);
 
         if (NetworkManager.Singleton.StartClient())
         {
             _joiningAsClient = true;
-            _joinTimer       = 0f;
+            _joinTimer = 0f;
         }
         else
         {
-            SetConnectStatus("연결 실패. IP 와 포트를 확인하세요.");
+            UnsubscribeNetworkCallbacks();
+            SetConnectStatus("Connection failed. Check the IP and port.");
             SetButtonsInteractable(true);
         }
     }
 
     private void OnStartClicked()
     {
-        if (!NetworkManager.Singleton.IsHost) return;
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsHost) return;
 
         int count = NetworkManager.Singleton.ConnectedClientsIds.Count;
         if (count < minPlayersToStart)
         {
-            SetWaitingStatus($"최소 {minPlayersToStart}명이 필요합니다. (현재 {count}명)");
+            SetWaitingStatus($"Need at least {minPlayersToStart} players. Current: {count}.");
             return;
         }
 
         startButton.interactable = false;
-        SetWaitingStatus("게임 시작 중...");
+        _matchStarted = true;
+        SetWaitingStatus("Loading arena...");
         NetworkManager.Singleton.SceneManager.LoadScene(arenaSceneName, LoadSceneMode.Single);
     }
 
@@ -192,27 +183,32 @@ public class NetworkLobbyUI : MonoBehaviour
     {
         Cleanup();
         ShowConnectPanel();
-        SetConnectStatus("연결을 취소했습니다.");
+        SetConnectStatus("Connection cancelled.");
     }
 
-    // ════════════════════════════════════════════════════════
-    //  네트워크 콜백
-    // ════════════════════════════════════════════════════════
-
     private void OnApproveConnection(
-        NetworkManager.ConnectionApprovalRequest  req,
+        NetworkManager.ConnectionApprovalRequest req,
         NetworkManager.ConnectionApprovalResponse res)
     {
+        if (NetworkManager.Singleton == null)
+        {
+            res.Approved = false;
+            res.CreatePlayerObject = false;
+            return;
+        }
+
         int currentCount = NetworkManager.Singleton.ConnectedClientsIds.Count;
-        res.Approved           = currentCount < 4;
+        res.Approved = !_matchStarted && currentCount < 4;
         res.CreatePlayerObject = res.Approved;
 
-        if (!res.Approved)
-            SetWaitingStatus("서버가 가득 찼습니다 (4/4).");
+        if (!res.Approved && !_matchStarted)
+            SetWaitingStatus("Server is full (4/4).");
     }
 
     private void OnClientConnected(ulong clientId)
     {
+        if (NetworkManager.Singleton == null) return;
+
         _joiningAsClient = false;
 
         if (NetworkManager.Singleton.IsHost)
@@ -221,34 +217,29 @@ public class NetworkLobbyUI : MonoBehaviour
         }
         else if (NetworkManager.Singleton.LocalClientId == clientId)
         {
-            // 내 접속 완료
             ShowWaitingPanel(isHost: false);
-            SetWaitingStatus("호스트가 게임을 시작할 때까지 대기 중...");
+            SetWaitingStatus("Connected. Waiting for host to start the match.");
         }
     }
 
     private void OnClientDisconnected(ulong clientId)
     {
+        if (NetworkManager.Singleton == null) return;
+
         if (NetworkManager.Singleton.IsHost)
         {
             RefreshPlayerCount();
         }
         else if (NetworkManager.Singleton.LocalClientId == clientId)
         {
-            // 서버에서 끊김
             Cleanup();
             ShowConnectPanel();
-            SetConnectStatus("서버 연결이 끊겼습니다.");
+            SetConnectStatus("Disconnected from server.");
         }
     }
 
-    // ════════════════════════════════════════════════════════
-    //  Update — 타임아웃 / 플레이어 수 갱신
-    // ════════════════════════════════════════════════════════
-
-    void Update()
+    private void Update()
     {
-        // 클라이언트 접속 타임아웃
         if (_joiningAsClient)
         {
             _joinTimer += Time.deltaTime;
@@ -257,21 +248,16 @@ public class NetworkLobbyUI : MonoBehaviour
                 _joiningAsClient = false;
                 Cleanup();
                 ShowConnectPanel();
-                SetConnectStatus("연결 시간이 초과됐습니다. IP 를 확인하세요.");
+                SetConnectStatus("Connection timed out. Check the IP address.");
             }
         }
 
-        // 호스트: 대기 패널이 켜져 있을 때 플레이어 수 실시간 갱신
         if (waitingPanel != null && waitingPanel.activeSelf &&
             NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost)
         {
             RefreshPlayerCount();
         }
     }
-
-    // ════════════════════════════════════════════════════════
-    //  유틸
-    // ════════════════════════════════════════════════════════
 
     private void RefreshPlayerCount()
     {
@@ -280,7 +266,7 @@ public class NetworkLobbyUI : MonoBehaviour
         int count = NetworkManager.Singleton.ConnectedClientsIds.Count;
 
         if (playerCountText != null)
-            playerCountText.text = $"플레이어  {count} / 4";
+            playerCountText.text = $"PLAYERS  {count} / 4";
 
         if (startButton != null)
             startButton.interactable = count >= minPlayersToStart;
@@ -288,8 +274,12 @@ public class NetworkLobbyUI : MonoBehaviour
         if (NetworkManager.Singleton.IsHost)
         {
             SetWaitingStatus(count >= minPlayersToStart
-                ? $"{count}명 접속 — 게임을 시작할 수 있습니다!"
-                : $"플레이어를 기다리는 중... ({count}/{minPlayersToStart})");
+                ? $"{count} players connected. Ready to start."
+                : $"Waiting for players... ({count}/{minPlayersToStart})");
+        }
+        else
+        {
+            SetWaitingStatus("Connected. Waiting for host to start the match.");
         }
     }
 
@@ -297,20 +287,35 @@ public class NetworkLobbyUI : MonoBehaviour
     {
         UnsubscribeNetworkCallbacks();
 
-        if (NetworkManager.Singleton != null &&
-            (NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsClient))
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
             NetworkManager.Singleton.Shutdown();
 
         _joiningAsClient = false;
-        _joinTimer       = 0f;
+        _joinTimer = 0f;
+        _matchStarted = false;
     }
 
     private void UnsubscribeNetworkCallbacks()
     {
         if (NetworkManager.Singleton == null) return;
-        NetworkManager.Singleton.ConnectionApprovalCallback  = null;
-        NetworkManager.Singleton.OnClientConnectedCallback  -= OnClientConnected;
+        NetworkManager.Singleton.ConnectionApprovalCallback = null;
+        if (!_networkCallbacksRegistered) return;
+        NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        _networkCallbacksRegistered = false;
+    }
+
+    private void RegisterNetworkCallbacks(bool includeApproval)
+    {
+        if (NetworkManager.Singleton == null) return;
+
+        UnsubscribeNetworkCallbacks();
+        if (includeApproval)
+            NetworkManager.Singleton.ConnectionApprovalCallback = OnApproveConnection;
+
+        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+        _networkCallbacksRegistered = true;
     }
 
     private void ConfigureTransport(string address)
@@ -335,7 +340,156 @@ public class NetworkLobbyUI : MonoBehaviour
         if (waitingStatusText != null) waitingStatusText.text = msg;
     }
 
-    // 기본 IP / 도메인 주소 유효성 검사
+    private void EnsureRuntimeLobbyUI()
+    {
+        if (lobbyRoot != null && lobbyRoot.name == "Title_Lobby_Runtime") return;
+
+        Canvas canvas = RuntimeUIFactory.EnsureCanvas("Title Canvas");
+        lobbyRoot = RuntimeUIFactory.CreatePanel(canvas.transform, "Title_Lobby_Runtime",
+            new Color(0.005f, 0.007f, 0.012f, 0.98f),
+            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+        RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_CyanRail", new Color(0f, 0.72f, 1f, 0.25f),
+            new Vector2(0.05f, 0.12f), new Vector2(0.055f, 0.88f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_MagentaRail", new Color(1f, 0.16f, 0.58f, 0.24f),
+            new Vector2(0.93f, 0.12f), new Vector2(0.936f, 0.88f), Vector2.zero, Vector2.zero);
+
+        RuntimeUIFactory.CreateText(lobbyRoot.transform, "Lobby_Title", "ONLINE LOBBY", 72,
+            TextAlignmentOptions.Left, new Vector2(0.09f, 0.76f), new Vector2(0.56f, 0.86f),
+            Vector2.zero, Vector2.zero, Color.white);
+        RuntimeUIFactory.CreateText(lobbyRoot.transform, "Lobby_Subtitle", "Host a room, or join a host by IP. Online only.",
+            26, TextAlignmentOptions.Left, new Vector2(0.09f, 0.70f), new Vector2(0.62f, 0.75f),
+            Vector2.zero, Vector2.zero, new Color(0.72f, 0.83f, 0.92f));
+
+        connectPanel = RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_ConnectPanel",
+            new Color(0.025f, 0.035f, 0.05f, 0.9f),
+            new Vector2(0.09f, 0.20f), new Vector2(0.58f, 0.64f), Vector2.zero, Vector2.zero);
+        CreateConnectPanelUI(connectPanel.transform);
+
+        waitingPanel = RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_WaitingPanel",
+            new Color(0.025f, 0.035f, 0.05f, 0.9f),
+            new Vector2(0.09f, 0.20f), new Vector2(0.58f, 0.64f), Vector2.zero, Vector2.zero);
+        CreateWaitingPanelUI(waitingPanel.transform);
+
+        var side = RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_SidePreview",
+            new Color(0.03f, 0.04f, 0.06f, 0.94f),
+            new Vector2(0.65f, 0.20f), new Vector2(0.90f, 0.64f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(side.transform, "Lobby_MapBarA", new Color(0f, 0.72f, 1f, 0.68f),
+            new Vector2(0.12f, 0.56f), new Vector2(0.88f, 0.62f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(side.transform, "Lobby_MapBarB", new Color(1f, 0.18f, 0.56f, 0.7f),
+            new Vector2(0.22f, 0.36f), new Vector2(0.78f, 0.41f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreateText(side.transform, "Lobby_MapLabel", "NEON ARENA\nUP TO 4 PLAYERS", 30,
+            TextAlignmentOptions.Center, new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.28f),
+            Vector2.zero, Vector2.zero, Color.white);
+
+        lobbyRoot.SetActive(false);
+    }
+
+    private void CreateConnectPanelUI(Transform root)
+    {
+        RuntimeUIFactory.CreateText(root, "Connect_Title", "CONNECT", 38,
+            TextAlignmentOptions.Left, new Vector2(0.08f, 0.78f), new Vector2(0.92f, 0.92f),
+            Vector2.zero, Vector2.zero, Color.white);
+
+        hostButton = RuntimeUIFactory.CreateButton(root, "Connect_Host", "HOST",
+            Vector2.zero, new Vector2(220f, 62f));
+        SetRect(hostButton.transform as RectTransform, new Vector2(0.08f, 0.57f), new Vector2(0.08f, 0.57f),
+            new Vector2(110f, 0f), new Vector2(220f, 62f), new Vector2(0.5f, 0.5f));
+
+        var inputRoot = RuntimeUIFactory.CreatePanel(root, "Connect_IpInput", new Color(0.06f, 0.08f, 0.11f, 0.96f),
+            new Vector2(0.08f, 0.38f), new Vector2(0.62f, 0.52f), Vector2.zero, Vector2.zero);
+        ipInputField = inputRoot.AddComponent<TMP_InputField>();
+        ipInputField.textComponent = RuntimeUIFactory.CreateText(inputRoot.transform, "Ip_Text", "127.0.0.1", 28,
+            TextAlignmentOptions.Center, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.white);
+        ipInputField.placeholder = RuntimeUIFactory.CreateText(inputRoot.transform, "Ip_Placeholder", "127.0.0.1", 28,
+            TextAlignmentOptions.Center, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+            new Color(0.6f, 0.68f, 0.76f, 0.8f));
+        ipInputField.text = "127.0.0.1";
+        ipInputField.characterLimit = 32;
+
+        joinButton = RuntimeUIFactory.CreateButton(root, "Connect_Join", "JOIN",
+            Vector2.zero, new Vector2(170f, 62f));
+        SetRect(joinButton.transform as RectTransform, new Vector2(0.68f, 0.45f), new Vector2(0.68f, 0.45f),
+            new Vector2(85f, 0f), new Vector2(170f, 62f), new Vector2(0.5f, 0.5f));
+
+        connectStatusText = RuntimeUIFactory.CreateText(root, "Connect_Status", "Start a host or join by IP.", 24,
+            TextAlignmentOptions.Left, new Vector2(0.08f, 0.22f), new Vector2(0.88f, 0.32f),
+            Vector2.zero, Vector2.zero, new Color(0.72f, 0.83f, 0.92f));
+
+        connectBackButton = RuntimeUIFactory.CreateButton(root, "Connect_Back", "BACK",
+            Vector2.zero, new Vector2(160f, 54f));
+        SetRect(connectBackButton.transform as RectTransform, new Vector2(0.08f, 0.10f), new Vector2(0.08f, 0.10f),
+            new Vector2(80f, 0f), new Vector2(160f, 54f), new Vector2(0.5f, 0.5f));
+    }
+
+    private void CreateWaitingPanelUI(Transform root)
+    {
+        RuntimeUIFactory.CreateText(root, "Waiting_Title", "WAITING ROOM", 38,
+            TextAlignmentOptions.Left, new Vector2(0.08f, 0.78f), new Vector2(0.92f, 0.92f),
+            Vector2.zero, Vector2.zero, Color.white);
+
+        playerCountText = RuntimeUIFactory.CreateText(root, "Waiting_Count", "PLAYERS  1 / 4", 42,
+            TextAlignmentOptions.Left, new Vector2(0.08f, 0.58f), new Vector2(0.88f, 0.70f),
+            Vector2.zero, Vector2.zero, new Color(0.1f, 0.95f, 1f));
+
+        waitingStatusText = RuntimeUIFactory.CreateText(root, "Waiting_Status", "Waiting for players...", 24,
+            TextAlignmentOptions.Left, new Vector2(0.08f, 0.42f), new Vector2(0.88f, 0.52f),
+            Vector2.zero, Vector2.zero, new Color(0.72f, 0.83f, 0.92f));
+
+        startButton = RuntimeUIFactory.CreateButton(root, "Waiting_Start", "START MATCH",
+            Vector2.zero, new Vector2(260f, 62f));
+        SetRect(startButton.transform as RectTransform, new Vector2(0.08f, 0.22f), new Vector2(0.08f, 0.22f),
+            new Vector2(130f, 0f), new Vector2(260f, 62f), new Vector2(0.5f, 0.5f));
+
+        waitingCancelButton = RuntimeUIFactory.CreateButton(root, "Waiting_Cancel", "CANCEL",
+            Vector2.zero, new Vector2(180f, 54f));
+        SetRect(waitingCancelButton.transform as RectTransform, new Vector2(0.08f, 0.10f), new Vector2(0.08f, 0.10f),
+            new Vector2(90f, 0f), new Vector2(180f, 54f), new Vector2(0.5f, 0.5f));
+    }
+
+    private void BindButtons()
+    {
+        if (hostButton != null)
+        {
+            hostButton.onClick.RemoveListener(OnHostClicked);
+            hostButton.onClick.AddListener(OnHostClicked);
+        }
+
+        if (joinButton != null)
+        {
+            joinButton.onClick.RemoveListener(OnJoinClicked);
+            joinButton.onClick.AddListener(OnJoinClicked);
+        }
+
+        if (connectBackButton != null)
+        {
+            connectBackButton.onClick.RemoveListener(OnConnectBackClicked);
+            connectBackButton.onClick.AddListener(OnConnectBackClicked);
+        }
+
+        if (startButton != null)
+        {
+            startButton.onClick.RemoveListener(OnStartClicked);
+            startButton.onClick.AddListener(OnStartClicked);
+        }
+
+        if (waitingCancelButton != null)
+        {
+            waitingCancelButton.onClick.RemoveListener(OnWaitingCancelClicked);
+            waitingCancelButton.onClick.AddListener(OnWaitingCancelClicked);
+        }
+    }
+
+    private static void SetRect(RectTransform rect, Vector2 min, Vector2 max, Vector2 pos, Vector2 size, Vector2 pivot)
+    {
+        if (rect == null) return;
+        rect.anchorMin = min;
+        rect.anchorMax = max;
+        rect.anchoredPosition = pos;
+        rect.sizeDelta = size;
+        rect.pivot = pivot;
+    }
+
     private static bool IsValidAddress(string addr)
     {
         if (addr == "localhost") return true;
