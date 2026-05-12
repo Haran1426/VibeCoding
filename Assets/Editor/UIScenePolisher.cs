@@ -319,18 +319,18 @@ public static class UIScenePolisher
         out TextMeshProUGUI clones, out TextMeshProUGUI countdown, out TextMeshProUGUI respawn,
         out TextMeshProUGUI[] feedSlots, out ScoreboardUI.ScoreRow[] rows)
     {
-        Panel(root, "Top_Timer_Backplate", C(0.02f, 0.03f, 0.05f, 0.74f), V(0.5f, 1f), V(0.5f, 1f), V(0f, -44f), V(260f, 58f), V(0.5f, 1f));
+        RoundPanel(root, "Top_Timer_Backplate", C(1f, 0.28f, 0.55f, 0.96f), V(0.5f, 1f), V(0.5f, 1f), V(0f, -48f), V(300f, 76f), V(0.5f, 1f), 34f, C(1f, 1f, 1f, 0.95f));
         Text(root, "Timer_Label", "TIME", 16, TextAlignmentOptions.Center,
             V(0.5f, 1f), V(0.5f, 1f), V(0f, -18f), V(220f, 24f), C(0.1f, 0.95f, 1f, 1f), V(0.5f, 1f));
         timer = Text(root, "Timer_Text", "02:00", 38, TextAlignmentOptions.Center,
             V(0.5f, 1f), V(0.5f, 1f), V(0f, -46f), V(220f, 52f), Color.white, V(0.5f, 1f));
 
-        Panel(root, "Player_Status_Backplate", C(0.02f, 0.03f, 0.05f, 0.82f), V(0f, 0f), V(0f, 0f), V(184f, 92f), V(320f, 128f));
+        RoundPanel(root, "Player_Status_Backplate", C(0.05f, 0.66f, 1f, 0.94f), V(0f, 0f), V(0f, 0f), V(184f, 92f), V(320f, 128f), null, 38f, C(1f, 1f, 1f, 0.95f));
         Text(root, "Knockback_Label", "DANGER", 16, TextAlignmentOptions.Left,
             V(0f, 0f), V(0f, 0f), V(46f, 116f), V(160f, 22f), C(1f, 0.82f, 0.18f, 1f));
         knockback = Text(root, "Knockback_Text", "0%", 48, TextAlignmentOptions.Left,
             V(0f, 0f), V(0f, 0f), V(46f, 56f), V(180f, 56f), Color.white);
-        Panel(root, "Knockback_Bar_Back", C(0.08f, 0.10f, 0.13f, 0.92f),
+        RoundPanel(root, "Knockback_Bar_Back", C(0.15f, 0.08f, 0.28f, 0.90f),
             V(0f, 0f), V(0f, 0f), V(174f, 36f), V(244f, 12f));
         knockbackFill = Panel(root, "Knockback_Bar_Fill", C(0.1f, 0.95f, 1f, 1f),
             V(0f, 0f), V(0f, 0f), V(52f, 36f), V(244f, 12f), V(0f, 0.5f)).GetComponent<Image>();
@@ -341,7 +341,7 @@ public static class UIScenePolisher
         clones = Text(root, "Clone_Count_Text", "CLONES  0", 24, TextAlignmentOptions.Left,
             V(0f, 0f), V(0f, 0f), V(46f, 94f), V(220f, 34f), C(0.2f, 0.9f, 1f, 1f));
 
-        var board = Panel(root, "Scoreboard_Panel", C(0.02f, 0.03f, 0.05f, 0.74f), V(1f, 1f), V(1f, 1f), V(-36f, -36f), V(278f, 158f), V(1f, 1f));
+        var board = RoundPanel(root, "Scoreboard_Panel", C(0.72f, 0.22f, 1f, 0.92f), V(1f, 1f), V(1f, 1f), V(-36f, -36f), V(294f, 174f), V(1f, 1f), 34f, C(1f, 1f, 1f, 0.95f));
         Text(board.transform, "Scoreboard_Header", "SCORE", 16, TextAlignmentOptions.Left,
             V(0f, 1f), V(1f, 1f), V(18f, -2f), V(-36f, 22f), C(0.1f, 0.95f, 1f, 1f), V(0.5f, 1f));
         rows = new ScoreboardUI.ScoreRow[4];
@@ -375,7 +375,9 @@ public static class UIScenePolisher
     private static void BuildPause(Transform root, out GameObject panel, out TextMeshProUGUI title,
         out TextMeshProUGUI subtitle, out Button resume, out Button leave)
     {
-        panel = Panel(root, "Pause_Panel", C(0.01f, 0.015f, 0.025f, 0.88f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        panel = Panel(root, "Pause_Backdrop", C(0.03f, 0.02f, 0.08f, 0.74f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        var modal = RoundPanel(panel.transform, "Pause_Panel", C(0.95f, 0.26f, 0.56f, 0.96f),
+            V(0.5f, 0.5f), V(0.5f, 0.5f), V(0f, 26f), V(620f, 390f), V(0.5f, 0.5f), 52f, C(1f, 1f, 1f, 0.98f));
         title = Text(panel.transform, "Pause_Title", "MATCH MENU", 62, TextAlignmentOptions.Center,
             V(0.5f, 0.5f), V(0.5f, 0.5f), V(0f, 120f), V(460f, 80f), C(0f, 0.9f, 1f, 1f));
         subtitle = Text(panel.transform, "Pause_Subtitle", "Online match keeps running while this menu is open.", 24, TextAlignmentOptions.Center,
@@ -388,7 +390,9 @@ public static class UIScenePolisher
         out TextMeshProUGUI[] ranks, out TextMeshProUGUI best, out TextMeshProUGUI hint,
         out Button rematch, out Button titleButton)
     {
-        panel = Panel(root, "Results_Panel", C(0.01f, 0.015f, 0.025f, 0.92f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        panel = Panel(root, "Results_Backdrop", C(0.03f, 0.02f, 0.08f, 0.78f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        RoundPanel(panel.transform, "Results_Panel", C(0.08f, 0.72f, 1f, 0.96f),
+            V(0.5f, 0.5f), V(0.5f, 0.5f), V(0f, 12f), V(680f, 460f), V(0.5f, 0.5f), 54f, C(1f, 1f, 1f, 0.98f));
         title = Text(panel.transform, "Results_Title", "MATCH END", 64, TextAlignmentOptions.Center,
             V(0.5f, 0.5f), V(0.5f, 0.5f), V(0f, 184f), V(540f, 80f), C(0f, 0.9f, 1f, 1f));
         ranks = new TextMeshProUGUI[4];
@@ -427,6 +431,24 @@ public static class UIScenePolisher
         return go;
     }
 
+    private static GameObject RoundPanel(Transform parent, string name, Color color, Vector2 min, Vector2 max,
+        Vector2 pos, Vector2 size, Vector2? pivot = null, float radius = 28f, Color? outlineColor = null)
+    {
+        var go = RectObject(parent, name, min, max, pos, size, pivot);
+        var rounded = go.AddComponent<RoundedRectGraphic>();
+        rounded.color = color;
+        rounded.Radius = radius;
+
+        var shadow = go.AddComponent<Shadow>();
+        shadow.effectColor = C(0.03f, 0.01f, 0.08f, 0.55f);
+        shadow.effectDistance = V(8f, -8f);
+
+        var outline = go.AddComponent<Outline>();
+        outline.effectColor = outlineColor ?? C(1f, 1f, 1f, 0.82f);
+        outline.effectDistance = V(4f, -4f);
+        return go;
+    }
+
     private static GameObject RectObject(Transform parent, string name, Vector2 min, Vector2 max, Vector2 pos, Vector2 size, Vector2? pivot = null)
     {
         var go = new GameObject(name);
@@ -460,16 +482,17 @@ public static class UIScenePolisher
 
     private static Button Button(Transform parent, string name, string label, Vector2 anchor, Vector2 size, Vector2 pos)
     {
-        var go = Panel(parent, name, C(0.05f, 0.08f, 0.12f, 0.94f), anchor, anchor, pos, size, V(0.5f, 0.5f));
+        var go = RoundPanel(parent, name, C(1f, 0.78f, 0.08f, 0.98f), anchor, anchor, pos, size, V(0.5f, 0.5f), 26f, C(1f, 1f, 1f, 0.94f));
         var button = go.AddComponent<Button>();
+        button.targetGraphic = go.GetComponent<RoundedRectGraphic>();
         var colors = button.colors;
-        colors.normalColor = C(0.05f, 0.08f, 0.12f, 0.94f);
-        colors.highlightedColor = C(0f, 0.45f, 0.70f, 0.96f);
-        colors.pressedColor = C(0f, 0.75f, 1f, 1f);
+        colors.normalColor = C(1f, 0.78f, 0.08f, 0.98f);
+        colors.highlightedColor = C(0.18f, 0.88f, 1f, 1f);
+        colors.pressedColor = C(1f, 0.38f, 0.72f, 1f);
         colors.selectedColor = colors.highlightedColor;
-        colors.disabledColor = C(0.08f, 0.09f, 0.11f, 0.55f);
+        colors.disabledColor = C(0.45f, 0.42f, 0.50f, 0.62f);
         button.colors = colors;
-        Panel(go.transform, "Accent", C(0f, 0.85f, 1f, 0.96f), Vector2.zero, V(0.018f, 1f), Vector2.zero, Vector2.zero);
+        RoundPanel(go.transform, "Accent", C(1f, 0.3f, 0.62f, 0.92f), V(0.02f, 0.16f), V(0.12f, 0.84f), Vector2.zero, Vector2.zero, null, 12f, C(1f, 1f, 1f, 0.0f));
         Text(go.transform, "Label", label, 28, TextAlignmentOptions.Center, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.white);
         return button;
     }

@@ -288,3 +288,26 @@ Player
 ## 최종 한 줄
 
 > **"내 플레이가 적이 되는 게임"**
+## UI / Visual Direction Update - 2026-05-12
+
+### Reference Direction
+
+- Overall UI should use a playful, readable, rounded party-brawler style inspired by Fall Guys.
+- This is a reference for design language only, not a direct copy.
+- Avoid flat rectangular debug-looking panels. Use chunky rounded panels, thick bright outlines, soft shadows, high contrast, and candy-like color blocking.
+- The game should feel approachable and toy-like even while supporting online competitive brawler rules.
+
+### Arena HUD Requirements
+
+- Timer: large rounded capsule at top center, readable at a glance.
+- Player danger/knockback: bottom-left rounded card with a clear `DANGER` label, large percent text, and a fill bar.
+- Scoreboard: top-right rounded card with clear `SCORE` header, player colors, and enough spacing to scan during combat.
+- Pause/results screens: large centered rounded modal panels, bright color identity, no bare black rectangles.
+- Buttons: rounded capsule buttons with accent stripe, hover/pressed colors, white text, and readable shadow.
+
+### Daily Maintenance Note
+
+- Whenever UI, gameplay, scene layout, lobby flow, online behavior, or release-readiness changes are made, summarize the meaningful changes in this document once per day.
+- Keep updates short and concrete: what changed, why it matters, and any remaining blocker.
+
+---
