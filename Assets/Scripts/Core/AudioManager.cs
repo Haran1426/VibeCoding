@@ -25,6 +25,9 @@ public class AudioManager : MonoBehaviour
     private AudioClip _clipDash;        // [버그6 픽스]
     private AudioClip _clipCloneSpawn;  // [버그6 픽스]
     private AudioClip _clipHeavyImpact;
+    private AudioClip _clipFinisher;
+    private AudioClip _clipRingOut;
+    private AudioClip _clipMatchEndStinger;
 
     private const int SampleRate = 22050;
     private int _eventBusClearVersion = -1;
@@ -64,7 +67,7 @@ public class AudioManager : MonoBehaviour
     // ── BGM ─────────────────────────────────────────────────
     private void StartBGM()
     {
-        AudioClip bgm = GenerateBGM(duration: 4f);
+        AudioClip bgm = GenerateArenaBGM(duration: 8f);
         bgmSource.clip   = bgm;
         bgmSource.loop   = true;
         bgmSource.volume = MasterVol * 0.45f;
@@ -80,6 +83,7 @@ public class AudioManager : MonoBehaviour
         }
         else if (state == MatchState.Playing && !bgmSource.isPlaying)
         {
+            bgmSource.pitch = 1f;
             bgmSource.volume = MasterVol * 0.45f;
             bgmSource.Play();
         }
@@ -101,6 +105,19 @@ public class AudioManager : MonoBehaviour
     public void PlayDash()        => PlaySFX(_clipDash,       0.5f);    // [버그6 픽스] 캐싱
     public void PlayCloneSpawn()  => PlaySFX(_clipCloneSpawn, 0.7f);    // [버그6 픽스] 캐싱
     public void PlayRespawn()     => PlaySFX(clipLevelUp,     0.6f);
+    public void PlayFinisher()    => PlaySFX(_clipFinisher,   1.0f);
+    public void PlayRingOut()     => PlaySFX(_clipRingOut,    0.75f);
+
+    public void PlayMatchEndStinger()
+    {
+        if (bgmSource != null)
+        {
+            bgmSource.pitch = 0.82f;
+            bgmSource.volume = MasterVol * 0.22f;
+        }
+
+        PlaySFX(_clipMatchEndStinger, 1.0f);
+    }
 
     private void PlaySFX(AudioClip clip, float relativeVol)
     {
@@ -170,11 +187,90 @@ public class AudioManager : MonoBehaviour
             GenerateTone(95f, 0.12f, 0.95f, fadeOut: true),
             GenerateNoise(0.07f, 0.45f, fadeOut: true)
         );
+
+        _clipFinisher = GenerateMix(
+            GenerateSweep(160f, 60f, 0.22f, 0.9f),
+            GenerateArpeggio(new float[]{ 523f, 784f, 1047f }, 0.055f, 0.82f)
+        );
+
+        _clipRingOut = GenerateMix(
+            GenerateSweep(760f, 120f, 0.20f, 0.72f),
+            GenerateNoise(0.12f, 0.22f, fadeOut: true)
+        );
+
+        _clipMatchEndStinger = GenerateMix(
+            GenerateArpeggio(new float[]{ 392f, 523f, 659f, 784f, 1047f }, 0.11f, 0.86f),
+            GenerateSweep(90f, 42f, 0.55f, 0.55f)
+        );
     }
 
     // ════════════════════════════════════════════════════════
     //  BGM 절차적 생성 (사이버펑크 앰비언트)
     // ════════════════════════════════════════════════════════
+    private AudioClip GenerateArenaBGM(float duration)
+    {
+        int samples = Mathf.RoundToInt(SampleRate * duration);
+        float[] data = new float[samples];
+
+        System.Random rng = new System.Random(7321);
+        float bpm = 132f;
+        float beat = 60f / bpm;
+        float[] bassNotes = { 55f, 65.41f, 73.42f, 82.41f };
+        float[] leadNotes = { 440f, 523.25f, 659.25f, 784f, 659.25f, 523.25f, 587.33f, 440f };
+
+        for (int i = 0; i < samples; i++)
+        {
+            float t = (float)i / SampleRate;
+            float barTime = t % (beat * 4f);
+            int step8 = Mathf.FloorToInt(t / (beat * 0.5f));
+            int beatIndex = Mathf.FloorToInt(t / beat);
+            float beatPhase = (t % beat) / beat;
+            float eighthPhase = (t % (beat * 0.5f)) / (beat * 0.5f);
+
+            float bassHz = bassNotes[(beatIndex / 2) % bassNotes.Length];
+            float bassEnv = 0.55f + 0.45f * (1f - beatPhase);
+            float bass = Mathf.Sin(2f * Mathf.PI * bassHz * t) * 0.26f * bassEnv;
+            bass += Mathf.Sign(Mathf.Sin(2f * Mathf.PI * bassHz * 0.5f * t)) * 0.055f * bassEnv;
+
+            float kick = 0f;
+            if (beatPhase < 0.18f)
+            {
+                float env = 1f - beatPhase / 0.18f;
+                float kickHz = Mathf.Lerp(92f, 38f, beatPhase / 0.18f);
+                kick = Mathf.Sin(2f * Mathf.PI * kickHz * t) * 0.42f * env;
+            }
+
+            float clap = 0f;
+            if ((beatIndex % 4 == 1 || beatIndex % 4 == 3) && beatPhase < 0.11f)
+            {
+                float env = 1f - beatPhase / 0.11f;
+                clap = ((float)rng.NextDouble() * 2f - 1f) * 0.16f * env;
+            }
+
+            float hat = 0f;
+            if (eighthPhase < 0.06f)
+            {
+                float env = 1f - eighthPhase / 0.06f;
+                hat = ((float)rng.NextDouble() * 2f - 1f) * 0.045f * env;
+            }
+
+            float lead = 0f;
+            if (barTime > beat * 1.5f)
+            {
+                float leadHz = leadNotes[step8 % leadNotes.Length];
+                float gate = eighthPhase < 0.55f ? 1f : 0f;
+                lead = Mathf.Sin(2f * Mathf.PI * leadHz * t) * 0.06f * gate * (1f - eighthPhase * 0.55f);
+            }
+
+            float sidechain = 0.82f + 0.18f * Mathf.Clamp01(beatPhase / 0.25f);
+            data[i] = Mathf.Clamp((bass + kick + clap + hat + lead) * sidechain, -1f, 1f);
+        }
+
+        AudioClip clip = AudioClip.Create("ArenaBGM", samples, 1, SampleRate, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
     private AudioClip GenerateBGM(float duration)
     {
         int samples = Mathf.RoundToInt(SampleRate * duration);

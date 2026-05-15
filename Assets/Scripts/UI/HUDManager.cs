@@ -68,19 +68,58 @@ public class HUDManager : MonoBehaviour
         Transform root = canvas.transform;
 
         if (timerText == null)
+        {
+            RuntimeUIFactory.CreateRoundedPanel(root, "Timer_Backplate_Runtime",
+                new Color(1f, 0.28f, 0.55f, 0.96f),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -58f), new Vector2(280f, 68f),
+                34f, new Color(1f, 1f, 1f, 0.95f));
+
             timerText = RuntimeUIFactory.CreateText(root, "TimerText_Runtime", "02:00", 38,
                 TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -42f), new Vector2(220f, 52f), Color.white);
+                new Vector2(0f, -56f), new Vector2(220f, 48f), Color.white);
+        }
+
+        bool needsPlayerStatusCard = knockbackText == null || knockbackFill == null || cloneCountText == null;
+        if (needsPlayerStatusCard)
+        {
+            RuntimeUIFactory.CreateRoundedPanel(root, "PlayerStatus_Backplate_Runtime",
+                new Color(0.05f, 0.66f, 1f, 0.94f),
+                new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(204f, 104f), new Vector2(340f, 132f),
+                38f, new Color(1f, 1f, 1f, 0.95f));
+
+            RuntimeUIFactory.CreateText(root, "KnockbackLabel_Runtime", "DANGER", 16,
+                TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(48f, 126f), new Vector2(160f, 22f), new Color(1f, 0.82f, 0.18f));
+        }
 
         if (knockbackText == null)
             knockbackText = RuntimeUIFactory.CreateText(root, "KnockbackText_Runtime", "0%", 46,
                 TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(0f, 0f),
-                new Vector2(38f, 42f), new Vector2(180f, 56f), Color.white);
+                new Vector2(48f, 56f), new Vector2(180f, 56f), Color.white);
+
+        if (knockbackFill == null)
+        {
+            RuntimeUIFactory.CreateRoundedPanel(root, "KnockbackBar_Back_Runtime",
+                new Color(0.15f, 0.08f, 0.28f, 0.90f),
+                new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(188f, 42f), new Vector2(252f, 14f), 8f);
+
+            knockbackFill = RuntimeUIFactory.CreateImagePanel(root, "KnockbackBar_Fill_Runtime",
+                new Color(0.1f, 0.95f, 1f, 1f),
+                new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(62f, 42f), new Vector2(252f, 14f));
+            knockbackFill.type = Image.Type.Filled;
+            knockbackFill.fillMethod = Image.FillMethod.Horizontal;
+            knockbackFill.fillOrigin = 0;
+            knockbackFill.fillAmount = 0f;
+        }
 
         if (cloneCountText == null)
             cloneCountText = RuntimeUIFactory.CreateText(root, "CloneCountText_Runtime", "CLONES  0", 24,
                 TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(0f, 0f),
-                new Vector2(38f, 92f), new Vector2(220f, 40f), new Color(0.2f, 0.9f, 1f));
+                new Vector2(48f, 102f), new Vector2(220f, 40f), new Color(0.2f, 0.9f, 1f));
 
         if (countdownText == null)
         {

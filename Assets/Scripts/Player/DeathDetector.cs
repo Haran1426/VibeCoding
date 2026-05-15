@@ -8,28 +8,39 @@ using UnityEngine;
 /// </summary>
 public class DeathDetector : MonoBehaviour
 {
+    private const float DropRecoveryHeight = 8f;
+
     [SerializeField] private float deathY = -8f;
     [SerializeField] private float killCreditWindowSeconds = 6f;
+    [SerializeField] private float spawnGraceSeconds = 1.25f;
 
     private PlayerStats      _stats;
     private InputRecorder    _recorder;
     private bool             _dead;
+    private float            _deathSuppressedUntil;
 
     void Awake()
     {
         _stats    = GetComponent<PlayerStats>();
         _recorder = GetComponent<InputRecorder>();
+        _deathSuppressedUntil = Time.time + spawnGraceSeconds;
     }
 
     void Update()
     {
         if (_dead) return;
+        if (!IsDeathActive())
+        {
+            RecoverPreMatchFall();
+            return;
+        }
         if (transform.position.y < deathY) TriggerDeath();
     }
 
     void OnTriggerEnter(Collider other)
     {
         if (_dead) return;
+        if (!IsDeathActive()) return;
         if (other.CompareTag("DeathZone") || other.name.Contains("DeathZone"))
             TriggerDeath();
     }
@@ -74,5 +85,29 @@ public class DeathDetector : MonoBehaviour
         // netSync != null && !IsOwner: 다른 플레이어 — Owner 쪽에서 이미 처리
     }
 
-    public void ResetDead() => _dead = false;
+    public void ResetDead()
+    {
+        _dead = false;
+        _deathSuppressedUntil = Time.time + spawnGraceSeconds;
+    }
+
+    private bool IsDeathActive()
+    {
+        if (Time.time < _deathSuppressedUntil) return false;
+
+        if (MatchNetworkManager.Instance != null)
+            return MatchNetworkManager.Instance.NetMatchState.Value == MatchState.Playing;
+        if (MatchManager.Instance != null)
+            return MatchManager.Instance.CurrentState == MatchState.Playing;
+        return true;
+    }
+
+    private void RecoverPreMatchFall()
+    {
+        if (transform.position.y >= deathY) return;
+
+        transform.position = new Vector3(transform.position.x, DropRecoveryHeight, transform.position.z);
+        var rb = GetComponent<Rigidbody>();
+        if (rb != null) rb.linearVelocity = Vector3.zero;
+    }
 }

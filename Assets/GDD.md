@@ -1,5 +1,5 @@
 # Neon Rewind Arena — Game Design Document
-> Version 0.3 | Last Updated: 2026-04-10
+> Version 0.3 | Last Updated: 2026-05-15
 
 ---
 
@@ -311,3 +311,39 @@ Player
 - Keep updates short and concrete: what changed, why it matters, and any remaining blocker.
 
 ---
+
+## Daily Notes
+
+### 2026-05-15
+
+- **Menu readability fix**: Menu flow now rebuilds the title/lobby UI at runtime and uses the working title `REWIND RUMBLE`. Critical labels/buttons get a font-independent `PixelTextGraphic` fallback, so Host/Join/Settings/Quit remain readable even if TMP font rendering breaks.
+- **Bug fix / movement tuning**: Fixed rounded UI panels missing `CanvasRenderer` by requiring/adding it for `RoundedRectGraphic`, disabling panel raycast targets except real buttons, and repairing authored/runtime rounded panel creation. Player movement defaults were raised to `moveSpeed=10.5`, `jumpForce=11`, `dashSpeed=26` across scene/player prefabs/clones for snappier brawler control.
+- **Spawn/drop safety**: Network respawn fallback now also uses `Y=8`, and `DeathDetector` ignores death during countdown plus a short spawn grace window so the entry drop does not immediately count as a fall death before `FIGHT!`. If a player slips below the death plane before death is active, they are lifted back to the drop height instead of being killed on match start.
+- **Entry drop tuning**: Arena player spawn points now start at `Y=8` so players fall into the arena during the `3-2-1` countdown before controls unlock on `FIGHT!`. Online, runtime-repaired, local, and fallback spawn paths use the same height; scene spawn objects use the registered `SpawnPoint` tag.
+- **UI spacing / overlap pass**: Runtime title, lobby, and arena HUD layouts were re-spaced so cards, labels, buttons, score rows, and kill feed messages keep readable margins instead of stacking on top of each other at 16:9. The title/lobby right-side placeholder bars were replaced with rounded arena showcase cards that communicate drop-in starts, ringouts, replay clones, and 4-player online play.
+- **Online end feedback cleanup**: `MatchNetworkManager` no longer plays an additional game-over clip after broadcasting match results. Online match end audio now routes through `GameFeelDirector` only, preventing stacked end stingers while keeping local/offline `MatchManager` game-over fallback intact.
+- **Validation (debug build)**: `dotnet build VibeCoding.sln --no-restore` passes with the existing Unity/MCP `System.Net.Http` and `System.IO.Compression` warnings.
+- **Change status (since 2026-05-14 run)**: No new commits landed; the game-feel + HUD/killfeed/results polish is still in the working tree, so it’s not yet protected by version control or visible to collaborators.
+- **Validation (re-run)**: `dotnet build VibeCoding.sln -c Release --no-restore` still fails with `MSB4184` due to access denied on `C:\\Users\\sdh24\\AppData\\Local\\Microsoft SDKs` (environment/permission issue). This blocks CI-style sanity checks from the CLI and needs resolving before release hardening.
+- **Remaining blockers / next smoke tests**: remove any tracked `.dotnet-home` telemetry files from git (keep `.dotnet-home/` ignored), run `Tools/Neon Rewind/Validate Release Scenes`, then do a quick host+client smoke test focusing on KO feedback (slow-mo rules + clone filtering), results reveal timing during slow motion, and match-end flow.
+
+### 2026-05-14
+
+- **UI style consistency (runtime + authored)**: `RuntimeUIFactory` now defaults to rounded panels and capsule-style buttons via `RoundedRectGraphic` (shadows, outlines, accent strip, brighter palette), and `UIScenePolisher` updates the menu/lobby preview cards + sliders + input styling to match. This reduces “flat debug UI” regressions when UI is rebuilt at runtime or regenerated in scenes.
+- **Runtime fallback bug fix**: `MenuManager` slider handles now target `Graphic` instead of assuming `Image`, which keeps settings sliders functional after rounded runtime panels replaced square images.
+- **Arena HUD fallback**: `HUDManager` now creates a rounded timer capsule, rounded player status card, `DANGER` label, and filled knockback bar only when authored HUD references are missing. This improves fallback readability without duplicating UI in authored scenes.
+- **Game-feel pass**: Added `GameFeelDirector` to coordinate kill and match-end feedback. Credited kills now trigger stronger camera shake, finisher SFX, colored burst/ring/confetti VFX, and offline-only micro slow motion; match end triggers safe post-game slow motion, camera shake, celebration VFX, and a stinger.
+- **Game-feel tuning**: Clone deaths are now filtered out of full finisher treatment in `GameFeelDirector`; clones keep the lightweight death burst/hit feedback while real player KOs get the large camera/VFX/audio payoff. This avoids visual noise when multiple replay clones are cleared quickly.
+- **Audio/BGM pass**: `AudioManager` now has finisher, ring-out, and match-end stinger procedural SFX plus a new 8-second arcade brawler BGM loop with kick, clap, bass, hats, and a gated lead line.
+- **UI feedback pass**: `KillFeedUI` now pops KO messages using unscaled time, and `ResultsPanel` pops the result modal and reveals ranked rows sequentially so the end screen feels like an actual match payoff during slow motion.
+- **Release readiness / repo hygiene**: `.dotnet-home` telemetry artifacts are still being generated locally; ensure the folder stays ignored so it doesn’t re-enter source control.
+- **Validation**: `dotnet build VibeCoding.sln --no-restore` passes. Remaining warnings are the existing Unity/MCP `System.Net.Http` and `System.IO.Compression` assembly version conflicts.
+
+### 2026-05-13
+
+- **UI visual polish pass**: `UIScenePolisher` now uses `RoundedRectGraphic` for more menu/lobby surfaces: arena preview card, rules strip, connect/waiting lobby cards, side preview, sliders, input fields, and mini-map preview shapes. This continues the rounded party-brawler direction and removes more flat debug-style rectangles from authored UI generation.
+- **Online lobby flow / UI**: `NetworkLobbyUI` gained a clearer host/join-by-IP flow (timeout, cancel/back, connection approval, min players gate) and can rebuild lobby UI at runtime via `RuntimeUIFactory` + `RoundedRectGraphic` (less dependence on fragile authored canvases).
+- **Online match behavior**: `MatchNetworkManager` now syncs match state + remaining time via `NetworkVariable`, and broadcasts final scores at match end; `MatchManager` disables itself when a network match is running (prevents double-timers).
+- **Arena / scene stability**: `ArenaMapRuntimeBuilder` can build/repair the baseline arena at runtime (platforms, rails, jump pads, impulse gates, spinner hazard, death zone, spawn points) to reduce scene-wiring breakage during online tests.
+- **Release readiness**: new editor-side `ReleaseSceneValidator` + scene polishers; Build Settings appear tightened to `MenuScene` + `ArenaScene`; `SceneRedirector` helps recover from landing in the wrong scene.
+- **Remaining blockers**: `.dotnet-home` telemetry/sentinel files were committed (should be ignored/removed); run `Tools/Neon Rewind/Validate Release Scenes` and do a quick host+client smoke test to confirm scene-load + end-match UX.

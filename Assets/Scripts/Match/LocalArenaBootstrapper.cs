@@ -20,7 +20,7 @@ public class LocalArenaBootstrapper : MonoBehaviour
     [SerializeField] private Transform[] spawnPoints;
 
     [Header("스폰 Y")]
-    [SerializeField] private float spawnY = 2.5f;
+    [SerializeField] private float spawnY = 8f;
 
     private readonly List<GameObject> _players = new List<GameObject>();
 

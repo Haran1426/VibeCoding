@@ -13,6 +13,7 @@ using UnityEngine;
 public class RespawnManager : MonoBehaviour
 {
     public static RespawnManager Instance { get; private set; }
+    private const float FallbackSpawnHeight = 8f;
 
     [SerializeField] private float respawnDelay = 2f;
     [SerializeField] private Transform[] spawnPoints;
@@ -100,7 +101,7 @@ public class RespawnManager : MonoBehaviour
     {
         if (spawnPoints != null && spawnPoints.Length > 0)
             return spawnPoints[Random.Range(0, spawnPoints.Length)].position;
-        return new Vector3(0f, 2.5f, 0f);
+        return new Vector3(0f, FallbackSpawnHeight, 0f);
     }
 
     public void SetSpawnPoints(Transform[] points)

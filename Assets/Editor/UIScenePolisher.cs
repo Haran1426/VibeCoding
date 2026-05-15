@@ -75,7 +75,7 @@ public static class UIScenePolisher
         waitingPanel.SetActive(false);
         lobbyRoot.SetActive(false);
 
-        SetObject(menu, "rebuildTitleSceneAtRuntime", false);
+        SetObject(menu, "rebuildTitleSceneAtRuntime", true);
         SetObject(menu, "mainPanel", main);
         SetObject(menu, "settingsPanel", settingsPanel);
         SetObject(menu, "lobbyUI", lobby);
@@ -90,7 +90,7 @@ public static class UIScenePolisher
         SetObject(menu, "sfxVolumeLabel", sfxValue);
         SetObject(menu, "settingsBackButton", settingsBack);
 
-        SetObject(lobby, "rebuildLobbyUIAtRuntime", false);
+        SetObject(lobby, "rebuildLobbyUIAtRuntime", true);
         SetObject(lobby, "lobbyRoot", lobbyRoot);
         SetObject(lobby, "connectPanel", connectPanel);
         SetObject(lobby, "waitingPanel", waitingPanel);
@@ -226,13 +226,13 @@ public static class UIScenePolisher
         settings = Button(root, "Settings_Button", "SETTINGS", V(0.06f, 0.165f), V(190f, 56f), V(95f, 0f));
         quit = Button(root, "Quit_Button", "QUIT", V(0.18f, 0.165f), V(150f, 56f), V(75f, 0f));
 
-        var preview = Panel(root, "Arena_Preview", C(0.03f, 0.04f, 0.06f, 0.92f), V(0.62f, 0.23f), V(0.92f, 0.72f), Vector2.zero, Vector2.zero);
-        Panel(preview.transform, "Platform", C(0f, 0.62f, 0.95f, 0.70f), V(0.12f, 0.42f), V(0.88f, 0.49f), Vector2.zero, Vector2.zero);
-        Panel(preview.transform, "SpinnerHazard", C(1f, 0.32f, 0.08f, 0.82f), V(0.30f, 0.53f), V(0.70f, 0.57f), Vector2.zero, Vector2.zero);
-        Panel(preview.transform, "JumpPad_Left", C(1f, 0.82f, 0.10f, 0.78f), V(0.15f, 0.31f), V(0.33f, 0.36f), Vector2.zero, Vector2.zero);
-        Panel(preview.transform, "JumpPad_Right", C(0.55f, 0.25f, 1f, 0.78f), V(0.67f, 0.66f), V(0.85f, 0.71f), Vector2.zero, Vector2.zero);
-        Panel(preview.transform, "Player_Cyan", C(0f, 0.78f, 1f, 0.95f), V(0.28f, 0.59f), V(0.34f, 0.73f), Vector2.zero, Vector2.zero);
-        Panel(preview.transform, "Player_Magenta", C(1f, 0.18f, 0.58f, 0.95f), V(0.66f, 0.31f), V(0.72f, 0.45f), Vector2.zero, Vector2.zero);
+        var preview = RoundPanel(root, "Arena_Preview", C(0.62f, 0.20f, 1f, 0.90f), V(0.62f, 0.23f), V(0.92f, 0.72f), Vector2.zero, Vector2.zero, null, 44f, C(1f, 1f, 1f, 0.94f));
+        RoundPanel(preview.transform, "Platform", C(0f, 0.72f, 1f, 0.82f), V(0.12f, 0.42f), V(0.88f, 0.50f), Vector2.zero, Vector2.zero, null, 20f, C(1f, 1f, 1f, 0.50f));
+        RoundPanel(preview.transform, "SpinnerHazard", C(1f, 0.32f, 0.08f, 0.86f), V(0.30f, 0.53f), V(0.70f, 0.59f), Vector2.zero, Vector2.zero, null, 18f);
+        RoundPanel(preview.transform, "JumpPad_Left", C(1f, 0.82f, 0.10f, 0.84f), V(0.15f, 0.31f), V(0.33f, 0.37f), Vector2.zero, Vector2.zero, null, 16f);
+        RoundPanel(preview.transform, "JumpPad_Right", C(0.55f, 0.25f, 1f, 0.84f), V(0.67f, 0.66f), V(0.85f, 0.72f), Vector2.zero, Vector2.zero, null, 16f);
+        RoundPanel(preview.transform, "Player_Cyan", C(0f, 0.78f, 1f, 0.96f), V(0.28f, 0.59f), V(0.34f, 0.75f), Vector2.zero, Vector2.zero, null, 18f, C(1f, 1f, 1f, 0.85f));
+        RoundPanel(preview.transform, "Player_Magenta", C(1f, 0.18f, 0.58f, 0.96f), V(0.66f, 0.31f), V(0.72f, 0.47f), Vector2.zero, Vector2.zero, null, 18f, C(1f, 1f, 1f, 0.85f));
         Text(preview.transform, "Preview_Label", "4 PLAYER ONLINE ARENA", 22, TextAlignmentOptions.Center,
             V(0f, 0.08f), V(1f, 0.16f), Vector2.zero, Vector2.zero, C(0.8f, 0.92f, 1f, 1f));
         Text(preview.transform, "Preview_Rule", "KNOCKOUTS CREATE REPLAY CLONES", 17, TextAlignmentOptions.Center,
@@ -246,8 +246,8 @@ public static class UIScenePolisher
 
     private static void BuildRuleStrip(Transform root)
     {
-        var strip = Panel(root, "Rules_Strip", C(0.025f, 0.035f, 0.05f, 0.72f),
-            V(0.06f, 0.315f), V(0.57f, 0.365f), Vector2.zero, Vector2.zero);
+        var strip = RoundPanel(root, "Rules_Strip", C(0.08f, 0.72f, 1f, 0.78f),
+            V(0.06f, 0.315f), V(0.57f, 0.372f), Vector2.zero, Vector2.zero, null, 26f, C(1f, 1f, 1f, 0.86f));
         Text(strip.transform, "Rules_Label", "WIN CONDITION", 17, TextAlignmentOptions.Left,
             V(0.035f, 0f), V(0.22f, 1f), Vector2.zero, Vector2.zero, C(0.1f, 0.95f, 1f, 1f));
         Text(strip.transform, "Rules_Text", "Hit rivals, ring them out, then survive the replay clones they leave behind.",
@@ -286,7 +286,7 @@ public static class UIScenePolisher
         Text(root, "Lobby_Info", "Host controls match start. Clients stay in the waiting room until arena load.",
             20, TextAlignmentOptions.Left, V(0.09f, 0.655f), V(0.66f, 0.69f), Vector2.zero, Vector2.zero, C(1f, 0.82f, 0.18f, 1f));
 
-        connect = Panel(root, "Connect_Panel", C(0.025f, 0.035f, 0.05f, 0.90f), V(0.09f, 0.20f), V(0.58f, 0.64f), Vector2.zero, Vector2.zero);
+        connect = RoundPanel(root, "Connect_Panel", C(0.10f, 0.58f, 1f, 0.88f), V(0.09f, 0.20f), V(0.58f, 0.64f), Vector2.zero, Vector2.zero, null, 42f, C(1f, 1f, 1f, 0.94f));
         Text(connect.transform, "Connect_Title", "CONNECT", 38, TextAlignmentOptions.Left, V(0.08f, 0.78f), V(0.92f, 0.92f), Vector2.zero, Vector2.zero, Color.white);
         Text(connect.transform, "Connect_Hint", "LAN / direct IP", 18, TextAlignmentOptions.Right,
             V(0.58f, 0.79f), V(0.92f, 0.90f), Vector2.zero, Vector2.zero, C(0.1f, 0.95f, 1f, 1f));
@@ -297,7 +297,7 @@ public static class UIScenePolisher
             V(0.08f, 0.22f), V(0.88f, 0.32f), Vector2.zero, Vector2.zero, C(0.72f, 0.83f, 0.92f, 1f));
         back = Button(connect.transform, "Connect_Back_Button", "BACK", V(0.08f, 0.10f), V(160f, 54f), V(80f, 0f));
 
-        waiting = Panel(root, "Waiting_Panel", C(0.025f, 0.035f, 0.05f, 0.90f), V(0.09f, 0.20f), V(0.58f, 0.64f), Vector2.zero, Vector2.zero);
+        waiting = RoundPanel(root, "Waiting_Panel", C(0.75f, 0.22f, 1f, 0.90f), V(0.09f, 0.20f), V(0.58f, 0.64f), Vector2.zero, Vector2.zero, null, 42f, C(1f, 1f, 1f, 0.94f));
         Text(waiting.transform, "Waiting_Title", "WAITING ROOM", 38, TextAlignmentOptions.Left, V(0.08f, 0.78f), V(0.92f, 0.92f), Vector2.zero, Vector2.zero, Color.white);
         playerCount = Text(waiting.transform, "Waiting_Count", "PLAYERS  1 / 4", 42, TextAlignmentOptions.Left,
             V(0.08f, 0.58f), V(0.88f, 0.70f), Vector2.zero, Vector2.zero, C(0.1f, 0.95f, 1f, 1f));
@@ -306,9 +306,9 @@ public static class UIScenePolisher
         start = Button(waiting.transform, "Start_Button", "START MATCH", V(0.08f, 0.22f), V(260f, 62f), V(130f, 0f));
         cancel = Button(waiting.transform, "Cancel_Button", "CANCEL", V(0.08f, 0.10f), V(180f, 54f), V(90f, 0f));
 
-        var side = Panel(root, "Lobby_SidePreview", C(0.03f, 0.04f, 0.06f, 0.94f), V(0.65f, 0.20f), V(0.90f, 0.64f), Vector2.zero, Vector2.zero);
-        Panel(side.transform, "MapBar_A", C(0f, 0.72f, 1f, 0.68f), V(0.12f, 0.56f), V(0.88f, 0.62f), Vector2.zero, Vector2.zero);
-        Panel(side.transform, "MapBar_B", C(1f, 0.18f, 0.56f, 0.70f), V(0.22f, 0.36f), V(0.78f, 0.41f), Vector2.zero, Vector2.zero);
+        var side = RoundPanel(root, "Lobby_SidePreview", C(1f, 0.78f, 0.08f, 0.92f), V(0.65f, 0.20f), V(0.90f, 0.64f), Vector2.zero, Vector2.zero, null, 42f, C(1f, 1f, 1f, 0.94f));
+        RoundPanel(side.transform, "MapBar_A", C(0f, 0.72f, 1f, 0.76f), V(0.12f, 0.56f), V(0.88f, 0.63f), Vector2.zero, Vector2.zero, null, 16f);
+        RoundPanel(side.transform, "MapBar_B", C(1f, 0.18f, 0.56f, 0.78f), V(0.22f, 0.36f), V(0.78f, 0.42f), Vector2.zero, Vector2.zero, null, 16f);
         Text(side.transform, "Map_Label", "NEON ARENA\nUP TO 4 PLAYERS", 30, TextAlignmentOptions.Center,
             V(0.08f, 0.12f), V(0.92f, 0.28f), Vector2.zero, Vector2.zero, Color.white);
         Text(side.transform, "Map_Rules", "RINGOUT +5\nHIT +1\nCLONE +1", 22, TextAlignmentOptions.Center,
@@ -435,9 +435,12 @@ public static class UIScenePolisher
         Vector2 pos, Vector2 size, Vector2? pivot = null, float radius = 28f, Color? outlineColor = null)
     {
         var go = RectObject(parent, name, min, max, pos, size, pivot);
+        if (go.GetComponent<CanvasRenderer>() == null)
+            go.AddComponent<CanvasRenderer>();
         var rounded = go.AddComponent<RoundedRectGraphic>();
         rounded.color = color;
         rounded.Radius = radius;
+        rounded.raycastTarget = false;
 
         var shadow = go.AddComponent<Shadow>();
         shadow.effectColor = C(0.03f, 0.01f, 0.08f, 0.55f);
@@ -484,7 +487,9 @@ public static class UIScenePolisher
     {
         var go = RoundPanel(parent, name, C(1f, 0.78f, 0.08f, 0.98f), anchor, anchor, pos, size, V(0.5f, 0.5f), 26f, C(1f, 1f, 1f, 0.94f));
         var button = go.AddComponent<Button>();
-        button.targetGraphic = go.GetComponent<RoundedRectGraphic>();
+        var buttonGraphic = go.GetComponent<RoundedRectGraphic>();
+        buttonGraphic.raycastTarget = true;
+        button.targetGraphic = buttonGraphic;
         var colors = button.colors;
         colors.normalColor = C(1f, 0.78f, 0.08f, 0.98f);
         colors.highlightedColor = C(0.18f, 0.88f, 1f, 1f);
@@ -499,22 +504,22 @@ public static class UIScenePolisher
 
     private static Slider Slider(Transform parent, string name, Vector2 min, Vector2 max)
     {
-        var track = Panel(parent, name, C(0.07f, 0.10f, 0.14f, 0.95f), min, max, Vector2.zero, Vector2.zero);
-        var fill = Panel(track.transform, "Fill", C(0f, 0.75f, 1f, 0.95f), Vector2.zero, V(0.8f, 1f), Vector2.zero, Vector2.zero);
-        var handle = Panel(track.transform, "Handle", Color.white, V(0.8f, 0.5f), V(0.8f, 0.5f), Vector2.zero, V(18f, 34f));
+        var track = RoundPanel(parent, name, C(0.10f, 0.58f, 1f, 0.82f), min, max, Vector2.zero, Vector2.zero, null, 24f, C(1f, 1f, 1f, 0.75f));
+        var fill = RoundPanel(track.transform, "Fill", C(1f, 0.78f, 0.08f, 0.96f), Vector2.zero, V(0.8f, 1f), Vector2.zero, Vector2.zero, null, 22f);
+        var handle = RoundPanel(track.transform, "Handle", Color.white, V(0.8f, 0.5f), V(0.8f, 0.5f), Vector2.zero, V(26f, 38f), V(0.5f, 0.5f), 13f, C(1f, 0.25f, 0.56f, 0.90f));
         var slider = track.AddComponent<Slider>();
         slider.minValue = 0f;
         slider.maxValue = 1f;
         slider.value = 0.8f;
         slider.fillRect = fill.transform as RectTransform;
         slider.handleRect = handle.transform as RectTransform;
-        slider.targetGraphic = handle.GetComponent<Image>();
+        slider.targetGraphic = handle.GetComponent<Graphic>();
         return slider;
     }
 
     private static TMP_InputField Input(Transform parent, string name, string value, Vector2 min, Vector2 max)
     {
-        var root = Panel(parent, name, C(0.06f, 0.08f, 0.11f, 0.96f), min, max, Vector2.zero, Vector2.zero);
+        var root = RoundPanel(parent, name, C(0.08f, 0.11f, 0.18f, 0.96f), min, max, Vector2.zero, Vector2.zero, null, 28f, C(1f, 1f, 1f, 0.82f));
         var input = root.AddComponent<TMP_InputField>();
         input.textComponent = Text(root.transform, "Text", value, 28, TextAlignmentOptions.Center, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.white);
         input.placeholder = Text(root.transform, "Placeholder", value, 28, TextAlignmentOptions.Center,

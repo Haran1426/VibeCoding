@@ -71,7 +71,69 @@ public static class RuntimeUIFactory
         return label;
     }
 
+    public static PixelTextGraphic CreatePixelText(Transform parent, string name, string text,
+        TextAnchor alignment, Vector2 anchorMin, Vector2 anchorMax,
+        Vector2 anchoredPosition, Vector2 size, Color color)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+
+        var rect = go.AddComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
+
+        var label = go.AddComponent<PixelTextGraphic>();
+        label.Text = text;
+        label.Alignment = alignment;
+        label.color = color;
+        label.raycastTarget = false;
+        return label;
+    }
+
     public static GameObject CreatePanel(Transform parent, string name, Color color,
+        Vector2 anchorMin, Vector2 anchorMax, Vector2 anchoredPosition, Vector2 size)
+    {
+        return CreateRoundedPanel(parent, name, color, anchorMin, anchorMax, anchoredPosition, size, 28f, null);
+    }
+
+    public static GameObject CreateRoundedPanel(Transform parent, string name, Color color,
+        Vector2 anchorMin, Vector2 anchorMax, Vector2 anchoredPosition, Vector2 size,
+        float radius = 28f, Color? outlineColor = null)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+
+        var rect = go.AddComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
+
+        if (go.GetComponent<CanvasRenderer>() == null)
+            go.AddComponent<CanvasRenderer>();
+
+        var graphic = go.AddComponent<RoundedRectGraphic>();
+        graphic.color = color;
+        graphic.Radius = radius;
+        graphic.raycastTarget = false;
+
+        var shadow = go.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0.03f, 0.01f, 0.08f, 0.45f);
+        shadow.effectDistance = new Vector2(7f, -7f);
+
+        if (outlineColor.HasValue)
+        {
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = outlineColor.Value;
+            outline.effectDistance = new Vector2(4f, -4f);
+        }
+
+        return go;
+    }
+
+    public static Image CreateImagePanel(Transform parent, string name, Color color,
         Vector2 anchorMin, Vector2 anchorMax, Vector2 anchoredPosition, Vector2 size)
     {
         var go = new GameObject(name);
@@ -85,27 +147,31 @@ public static class RuntimeUIFactory
 
         var image = go.AddComponent<Image>();
         image.color = color;
-        return go;
+        return image;
     }
 
     public static Button CreateButton(Transform parent, string name, string text,
         Vector2 anchoredPosition, Vector2 size)
     {
-        var go = CreatePanel(parent, name, new Color(0.05f, 0.08f, 0.12f, 0.92f),
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchoredPosition, size);
+        var go = CreateRoundedPanel(parent, name, new Color(1f, 0.78f, 0.08f, 0.98f),
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchoredPosition, size,
+            26f, new Color(1f, 1f, 1f, 0.94f));
 
         var button = go.AddComponent<Button>();
+        var buttonGraphic = go.GetComponent<RoundedRectGraphic>();
+        buttonGraphic.raycastTarget = true;
+        button.targetGraphic = buttonGraphic;
         var colors = button.colors;
-        colors.normalColor = new Color(0.05f, 0.08f, 0.12f, 0.92f);
-        colors.highlightedColor = new Color(0.0f, 0.45f, 0.7f, 0.95f);
-        colors.pressedColor = new Color(0f, 0.75f, 1f, 1f);
-        colors.disabledColor = new Color(0.08f, 0.09f, 0.11f, 0.55f);
+        colors.normalColor = new Color(1f, 0.78f, 0.08f, 0.98f);
+        colors.highlightedColor = new Color(0.18f, 0.88f, 1f, 1f);
+        colors.pressedColor = new Color(1f, 0.30f, 0.62f, 1f);
+        colors.disabledColor = new Color(0.32f, 0.34f, 0.42f, 0.65f);
         button.colors = colors;
 
-        CreatePanel(go.transform, name + "_Accent", new Color(0f, 0.85f, 1f, 0.95f),
-            new Vector2(0f, 0f), new Vector2(0.018f, 1f), Vector2.zero, Vector2.zero);
-        CreateText(go.transform, name + "_Text", text, 28, TextAlignmentOptions.Center,
-            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.white);
+        CreateRoundedPanel(go.transform, name + "_Accent", new Color(1f, 0.30f, 0.62f, 0.92f),
+            new Vector2(0.02f, 0.16f), new Vector2(0.12f, 0.84f), Vector2.zero, Vector2.zero, 12f);
+        CreatePixelText(go.transform, name + "_PixelText", text, TextAnchor.MiddleCenter,
+            new Vector2(0.18f, 0.22f), new Vector2(0.94f, 0.78f), Vector2.zero, Vector2.zero, Color.white);
         return button;
     }
 }

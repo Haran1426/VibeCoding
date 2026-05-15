@@ -74,7 +74,7 @@ public class PlayerNetworkSync : NetworkBehaviour
 
             Vector3 pos = NeonNetworkManager.Net != null
                 ? NeonNetworkManager.Net.GetNextSpawnPoint()
-                : Vector3.up;
+                : Vector3.up * 8f;
             _lastSpawnPosition = pos;
             transform.position = pos;
         }
@@ -404,7 +404,7 @@ public class PlayerNetworkSync : NetworkBehaviour
 
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) yield break;
 
-        Vector3 pos = NeonNetworkManager.Net?.GetNextSpawnPoint() ?? Vector3.up;
+        Vector3 pos = NeonNetworkManager.Net?.GetNextSpawnPoint() ?? Vector3.up * 8f;
         _lastSpawnPosition = pos;
         _serverDead = false;
         NetKnockback.Value = 0f;

@@ -8,6 +8,7 @@ using UnityEngine;
 public static class ArenaMapRuntimeBuilder
 {
     private const string RootName = "RuntimeArena";
+    private const float SpawnHeight = 8f;
 
     public static Transform[] EnsureArena()
     {
@@ -272,7 +273,12 @@ public static class ArenaMapRuntimeBuilder
         var points = new List<Transform>();
         var existing = FindGameObjectsWithTagSafe("SpawnPoint");
         foreach (var go in existing)
-            if (go != null) points.Add(go.transform);
+        {
+            if (go == null) continue;
+            var pos = go.transform.position;
+            go.transform.position = new Vector3(pos.x, SpawnHeight, pos.z);
+            points.Add(go.transform);
+        }
 
         if (points.Count >= 4)
             return points.ToArray();
@@ -286,10 +292,10 @@ public static class ArenaMapRuntimeBuilder
 
         Vector3[] positions =
         {
-            new Vector3(6.5f, 2.2f, 0f),
-            new Vector3(-6.5f, 2.2f, 0f),
-            new Vector3(0f, 2.2f, 6.5f),
-            new Vector3(0f, 2.2f, -6.5f)
+            new Vector3(6.5f, SpawnHeight, 0f),
+            new Vector3(-6.5f, SpawnHeight, 0f),
+            new Vector3(0f, SpawnHeight, 6.5f),
+            new Vector3(0f, SpawnHeight, -6.5f)
         };
 
         points.Clear();

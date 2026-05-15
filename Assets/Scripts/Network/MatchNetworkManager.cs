@@ -112,7 +112,6 @@ public class MatchNetworkManager : NetworkBehaviour
     {
         var scores = DeserializeScores(flatScores);
         EventBus.RaiseMatchEnded(scores);
-        AudioManager.Instance?.PlayGameOver();
     }
 
     // ── 클라이언트: NetworkVariable 변경 반영 ────────────────

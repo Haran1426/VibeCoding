@@ -72,7 +72,7 @@ public class ScoreboardUI : MonoBehaviour
         var panel = RuntimeUIFactory.CreatePanel(canvas.transform, "Scoreboard_Runtime",
             new Color(0.02f, 0.03f, 0.05f, 0.74f),
             new Vector2(1f, 1f), new Vector2(1f, 1f),
-            new Vector2(-160f, -96f), new Vector2(260f, 152f));
+            new Vector2(-44f, -126f), new Vector2(300f, 172f));
 
         var panelRect = panel.GetComponent<RectTransform>();
         panelRect.pivot = new Vector2(1f, 1f);
@@ -87,26 +87,26 @@ public class ScoreboardUI : MonoBehaviour
             rowRect.anchorMin = new Vector2(0f, 1f);
             rowRect.anchorMax = new Vector2(1f, 1f);
             rowRect.pivot = new Vector2(0.5f, 1f);
-            rowRect.anchoredPosition = new Vector2(0f, -10f - i * 34f);
-            rowRect.sizeDelta = new Vector2(-20f, 30f);
+            rowRect.anchoredPosition = new Vector2(0f, -14f - i * 38f);
+            rowRect.sizeDelta = new Vector2(-28f, 34f);
 
             var dotGo = new GameObject("ColorDot");
             dotGo.transform.SetParent(rowGo.transform, false);
             var dotRect = dotGo.AddComponent<RectTransform>();
             dotRect.anchorMin = new Vector2(0f, 0.5f);
             dotRect.anchorMax = new Vector2(0f, 0.5f);
-            dotRect.anchoredPosition = new Vector2(14f, 0f);
-            dotRect.sizeDelta = new Vector2(12f, 12f);
+            dotRect.anchoredPosition = new Vector2(18f, 0f);
+            dotRect.sizeDelta = new Vector2(14f, 14f);
             var dot = dotGo.AddComponent<Image>();
             dot.raycastTarget = false;
 
             var name = RuntimeUIFactory.CreateText(rowGo.transform, "Name", "P1", 20,
                 TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(1f, 1f),
-                new Vector2(58f, 0f), new Vector2(-86f, 0f), Color.white);
+                new Vector2(66f, 0f), new Vector2(-96f, 0f), Color.white);
 
             var score = RuntimeUIFactory.CreateText(rowGo.transform, "Score", "0", 22,
                 TextAlignmentOptions.Right, new Vector2(1f, 0f), new Vector2(1f, 1f),
-                new Vector2(-22f, 0f), new Vector2(58f, 0f), Color.white);
+                new Vector2(-28f, 0f), new Vector2(64f, 0f), Color.white);
 
             rows[i] = new ScoreRow
             {

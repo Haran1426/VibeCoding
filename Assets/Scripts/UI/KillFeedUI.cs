@@ -48,7 +48,7 @@ public class KillFeedUI : MonoBehaviour
         {
             feedSlots[i] = RuntimeUIFactory.CreateText(canvas.transform, $"KillFeed_Runtime_{i + 1}", "", 23,
                 TextAlignmentOptions.Right, new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-36f, -82f - i * 32f), new Vector2(520f, 30f), Color.white);
+                new Vector2(-44f, -242f - i * 34f), new Vector2(520f, 32f), Color.white);
         }
     }
 
@@ -108,21 +108,34 @@ public class KillFeedUI : MonoBehaviour
     {
         slot.text  = msg;
         slot.color = new Color(slot.color.r, slot.color.g, slot.color.b, 1f);
+        slot.rectTransform.localScale = Vector3.one * 1.14f;
+
+        float popElapsed = 0f;
+        const float popDuration = 0.14f;
+        while (popElapsed < popDuration)
+        {
+            popElapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(popElapsed / popDuration);
+            slot.rectTransform.localScale = Vector3.Lerp(Vector3.one * 1.14f, Vector3.one, t);
+            yield return null;
+        }
+        slot.rectTransform.localScale = Vector3.one;
 
         // 표시 유지
-        yield return new WaitForSeconds(displayTime - 0.5f);
+        yield return new WaitForSecondsRealtime(displayTime - 0.5f);
 
         // 0.5초 페이드 아웃
         float elapsed = 0f;
         Color c = slot.color;
         while (elapsed < 0.5f)
         {
-            elapsed     += Time.deltaTime;
+            elapsed     += Time.unscaledDeltaTime;
             slot.color   = new Color(c.r, c.g, c.b, Mathf.Lerp(1f, 0f, elapsed / 0.5f));
             yield return null;
         }
 
         slot.text = "";
+        slot.rectTransform.localScale = Vector3.one;
     }
 
     // ════════════════════════════════════════════════════════

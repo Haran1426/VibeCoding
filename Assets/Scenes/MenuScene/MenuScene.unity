@@ -7528,7 +7528,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51bed4b618e413140b38446d2ebb257b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rebuildLobbyUIAtRuntime: 0
+  rebuildLobbyUIAtRuntime: 1
   lobbyRoot: {fileID: 1437097061}
   connectPanel: {fileID: 1482351572}
   waitingPanel: {fileID: 544250869}
@@ -7557,7 +7557,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 034b1695826b1b7419387f9b062a4a8a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rebuildTitleSceneAtRuntime: 0
+  rebuildTitleSceneAtRuntime: 1
   mainPanel: {fileID: 1078201885}
   settingsPanel: {fileID: 1845302539}
   lobbyUI: {fileID: 1650000493}

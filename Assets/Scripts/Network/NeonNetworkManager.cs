@@ -9,6 +9,7 @@ using UnityEngine;
 public class NeonNetworkManager : NetworkManager
 {
     public static NeonNetworkManager Net => Singleton as NeonNetworkManager;
+    private const float FallbackSpawnHeight = 8f;
 
     [Header("스폰 포인트")]
     [SerializeField] private Transform[] spawnPoints;
@@ -26,7 +27,7 @@ public class NeonNetworkManager : NetworkManager
     public Vector3 GetNextSpawnPoint()
     {
         if (spawnPoints == null || spawnPoints.Length == 0)
-            return new Vector3(Random.Range(-6f, 6f), 1f, Random.Range(-6f, 6f));
+            return new Vector3(Random.Range(-6f, 6f), FallbackSpawnHeight, Random.Range(-6f, 6f));
         Vector3 pos = spawnPoints[_spawnIndex % spawnPoints.Length].position;
         _spawnIndex++;
         return pos;

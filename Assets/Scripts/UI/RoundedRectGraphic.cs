@@ -6,6 +6,7 @@ using UnityEngine.UI;
 /// Lightweight filled rounded rectangle for authored/runtime UI.
 /// Avoids square default Image panels when the UI needs a playful brawler look.
 /// </summary>
+[RequireComponent(typeof(CanvasRenderer))]
 public class RoundedRectGraphic : MaskableGraphic
 {
     [SerializeField] private float radius = 28f;
@@ -19,6 +20,13 @@ public class RoundedRectGraphic : MaskableGraphic
             radius = Mathf.Max(0f, value);
             SetVerticesDirty();
         }
+    }
+
+    protected override void OnEnable()
+    {
+        if (GetComponent<CanvasRenderer>() == null)
+            gameObject.AddComponent<CanvasRenderer>();
+        base.OnEnable();
     }
 
     protected override void OnPopulateMesh(VertexHelper vh)

@@ -73,6 +73,27 @@ public class VFXManager : MonoBehaviour
         SpawnBurst(pos + Vector3.up * 0.7f, color, entityId >= 100 ? 18 : 28, 0.16f, 7f, 0.45f);
     }
 
+    public void PlayFinisher(Vector3 pos, int killerId, bool creditedKill)
+    {
+        Color primary = creditedKill ? PlayerColor(killerId) : new Color(1f, 0.72f, 0.08f);
+        Vector3 center = pos + Vector3.up * 0.8f;
+
+        SpawnBurst(center, primary, creditedKill ? 46 : 28, creditedKill ? 0.22f : 0.16f, creditedKill ? 12f : 8f, 0.48f);
+        SpawnRing(pos + Vector3.up * 0.35f, Color.white, creditedKill ? 72 : 44, 0.08f, creditedKill ? 15f : 10f, 0.36f);
+        SpawnRing(pos + Vector3.up * 0.95f, primary, creditedKill ? 54 : 30, 0.12f, creditedKill ? 9f : 6f, 0.52f);
+
+        if (creditedKill)
+            SpawnConfetti(center + Vector3.up * 0.5f, 36, 0.12f, 6.5f, 0.9f);
+    }
+
+    public void PlayMatchEndCelebration(Vector3 center)
+    {
+        Vector3 origin = center + Vector3.up * 1.2f;
+        SpawnRing(origin, new Color(1f, 0.82f, 0.12f), 90, 0.14f, 12f, 0.8f);
+        SpawnRing(origin + Vector3.up * 0.5f, new Color(0.1f, 0.9f, 1f), 90, 0.11f, 9f, 0.9f);
+        SpawnConfetti(origin + Vector3.up * 1.3f, 90, 0.16f, 7.5f, 1.45f);
+    }
+
     private void OnEntityDied(int entityId, Vector3 pos, int killerId)
     {
         PlayDeathBurst(pos, entityId);
@@ -183,6 +204,64 @@ public class VFXManager : MonoBehaviour
         ps.Play();
 
         Destroy(root, lifetime + 0.2f);
+    }
+
+    private static void SpawnConfetti(Vector3 pos, int count, float size, float speed, float lifetime)
+    {
+        GameObject root = new GameObject("VFX_Confetti");
+        root.transform.position = pos;
+        ParticleSystem ps = root.AddComponent<ParticleSystem>();
+
+        var main = ps.main;
+        main.startLifetime = lifetime;
+        main.startSpeed = speed;
+        main.startSize = size;
+        main.gravityModifier = 0.55f;
+        main.loop = false;
+        main.playOnAwake = false;
+        main.startColor = Color.white;
+
+        var emission = ps.emission;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)count) });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle = 42f;
+        shape.radius = 0.35f;
+
+        var colorOverLifetime = ps.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        var gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(new Color(0.10f, 0.95f, 1f), 0f),
+                new GradientColorKey(new Color(1f, 0.30f, 0.62f), 0.36f),
+                new GradientColorKey(new Color(1f, 0.82f, 0.12f), 0.70f),
+                new GradientColorKey(new Color(0.70f, 0.25f, 1f), 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 0.72f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = gradient;
+
+        SetNeonRenderer(ps, Color.white);
+        ps.Play();
+        Destroy(root, lifetime + 0.25f);
+    }
+
+    private static Color PlayerColor(int playerId)
+    {
+        switch (Mathf.Abs(playerId) % 4)
+        {
+            case 0: return new Color(0.10f, 0.95f, 1f);
+            case 1: return new Color(1f, 0.30f, 0.62f);
+            case 2: return new Color(0.70f, 0.25f, 1f);
+            default: return new Color(1f, 0.82f, 0.12f);
+        }
     }
 
     private static void SetNeonRenderer(ParticleSystem ps, Color color)

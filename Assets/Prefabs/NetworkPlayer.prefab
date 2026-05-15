@@ -162,9 +162,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerId: 0
   isClone: 0
-  moveSpeed: 8
-  jumpForce: 10
-  dashSpeed: 20
+  moveSpeed: 10.5
+  jumpForce: 11
+  dashSpeed: 26
   dashDuration: 0.14
   dashCooldown: 0.9
   attackPower: 10

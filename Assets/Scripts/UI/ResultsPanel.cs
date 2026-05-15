@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
@@ -27,6 +28,7 @@ public class ResultsPanel : MonoBehaviour
     [SerializeField] private Button menuButton;
 
     private int _localPlayerId;
+    private Coroutine _popRoutine;
 
     // ════════════════════════════════════════════════════════
     void Awake()
@@ -163,6 +165,55 @@ public class ResultsPanel : MonoBehaviour
         }
         if (bestScoreText != null)
             bestScoreText.text = $"BEST  {best}pt";
+
+        if (_popRoutine != null)
+            StopCoroutine(_popRoutine);
+        _popRoutine = StartCoroutine(ResultsPopRoutine());
+    }
+
+    private IEnumerator ResultsPopRoutine()
+    {
+        if (panel == null) yield break;
+
+        Transform panelTransform = panel.transform;
+        panelTransform.localScale = Vector3.one * 0.92f;
+
+        float elapsed = 0f;
+        const float panelDuration = 0.18f;
+        while (elapsed < panelDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / panelDuration);
+            float eased = 1f - Mathf.Pow(1f - t, 3f);
+            panelTransform.localScale = Vector3.LerpUnclamped(Vector3.one * 0.92f, Vector3.one * 1.03f, eased);
+            yield return null;
+        }
+
+        panelTransform.localScale = Vector3.one;
+
+        if (rankTexts == null) yield break;
+
+        for (int i = 0; i < rankTexts.Length; i++)
+        {
+            var rank = rankTexts[i];
+            if (rank == null || string.IsNullOrEmpty(rank.text)) continue;
+
+            rank.rectTransform.localScale = Vector3.one * 0.88f;
+            elapsed = 0f;
+            const float rankDuration = 0.11f;
+            while (elapsed < rankDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / rankDuration);
+                rank.rectTransform.localScale = Vector3.Lerp(Vector3.one * 0.88f, Vector3.one, t);
+                yield return null;
+            }
+
+            rank.rectTransform.localScale = Vector3.one;
+            yield return new WaitForSecondsRealtime(0.035f);
+        }
+
+        _popRoutine = null;
     }
 
     // ════════════════════════════════════════════════════════

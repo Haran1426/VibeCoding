@@ -349,38 +349,32 @@ public class NetworkLobbyUI : MonoBehaviour
             new Color(0.005f, 0.007f, 0.012f, 0.98f),
             Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-        RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_CyanRail", new Color(0f, 0.72f, 1f, 0.25f),
-            new Vector2(0.05f, 0.12f), new Vector2(0.055f, 0.88f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_MagentaRail", new Color(1f, 0.16f, 0.58f, 0.24f),
-            new Vector2(0.93f, 0.12f), new Vector2(0.936f, 0.88f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_CyanRail", new Color(0f, 0.72f, 1f, 0.22f),
+            new Vector2(0.04f, 0.12f), new Vector2(0.047f, 0.88f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_MagentaRail", new Color(1f, 0.16f, 0.58f, 0.20f),
+            new Vector2(0.945f, 0.12f), new Vector2(0.952f, 0.88f), Vector2.zero, Vector2.zero);
 
-        RuntimeUIFactory.CreateText(lobbyRoot.transform, "Lobby_Title", "ONLINE LOBBY", 72,
-            TextAlignmentOptions.Left, new Vector2(0.09f, 0.76f), new Vector2(0.56f, 0.86f),
+        RuntimeUIFactory.CreateText(lobbyRoot.transform, "Lobby_Title", "ONLINE LOBBY", 64,
+            TextAlignmentOptions.Left, new Vector2(0.08f, 0.77f), new Vector2(0.56f, 0.86f),
+            Vector2.zero, Vector2.zero, Color.white);
+        RuntimeUIFactory.CreatePixelText(lobbyRoot.transform, "Lobby_Title_Pixel", "ONLINE LOBBY", TextAnchor.MiddleLeft,
+            new Vector2(0.08f, 0.735f), new Vector2(0.50f, 0.795f),
             Vector2.zero, Vector2.zero, Color.white);
         RuntimeUIFactory.CreateText(lobbyRoot.transform, "Lobby_Subtitle", "Host a room, or join a host by IP. Online only.",
-            26, TextAlignmentOptions.Left, new Vector2(0.09f, 0.70f), new Vector2(0.62f, 0.75f),
+            24, TextAlignmentOptions.Left, new Vector2(0.08f, 0.68f), new Vector2(0.58f, 0.73f),
             Vector2.zero, Vector2.zero, new Color(0.72f, 0.83f, 0.92f));
 
         connectPanel = RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_ConnectPanel",
             new Color(0.025f, 0.035f, 0.05f, 0.9f),
-            new Vector2(0.09f, 0.20f), new Vector2(0.58f, 0.64f), Vector2.zero, Vector2.zero);
+            new Vector2(0.08f, 0.18f), new Vector2(0.56f, 0.64f), Vector2.zero, Vector2.zero);
         CreateConnectPanelUI(connectPanel.transform);
 
         waitingPanel = RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_WaitingPanel",
             new Color(0.025f, 0.035f, 0.05f, 0.9f),
-            new Vector2(0.09f, 0.20f), new Vector2(0.58f, 0.64f), Vector2.zero, Vector2.zero);
+            new Vector2(0.08f, 0.18f), new Vector2(0.56f, 0.64f), Vector2.zero, Vector2.zero);
         CreateWaitingPanelUI(waitingPanel.transform);
 
-        var side = RuntimeUIFactory.CreatePanel(lobbyRoot.transform, "Lobby_SidePreview",
-            new Color(0.03f, 0.04f, 0.06f, 0.94f),
-            new Vector2(0.65f, 0.20f), new Vector2(0.90f, 0.64f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreatePanel(side.transform, "Lobby_MapBarA", new Color(0f, 0.72f, 1f, 0.68f),
-            new Vector2(0.12f, 0.56f), new Vector2(0.88f, 0.62f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreatePanel(side.transform, "Lobby_MapBarB", new Color(1f, 0.18f, 0.56f, 0.7f),
-            new Vector2(0.22f, 0.36f), new Vector2(0.78f, 0.41f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreateText(side.transform, "Lobby_MapLabel", "NEON ARENA\nUP TO 4 PLAYERS", 30,
-            TextAlignmentOptions.Center, new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.28f),
-            Vector2.zero, Vector2.zero, Color.white);
+        CreateLobbyShowcase(lobbyRoot.transform);
 
         lobbyRoot.SetActive(false);
     }
@@ -390,14 +384,16 @@ public class NetworkLobbyUI : MonoBehaviour
         RuntimeUIFactory.CreateText(root, "Connect_Title", "CONNECT", 38,
             TextAlignmentOptions.Left, new Vector2(0.08f, 0.78f), new Vector2(0.92f, 0.92f),
             Vector2.zero, Vector2.zero, Color.white);
+        RuntimeUIFactory.CreatePixelText(root, "Connect_Title_Pixel", "CONNECT", TextAnchor.MiddleLeft,
+            new Vector2(0.08f, 0.80f), new Vector2(0.50f, 0.90f), Vector2.zero, Vector2.zero, Color.white);
 
-        hostButton = RuntimeUIFactory.CreateButton(root, "Connect_Host", "HOST",
-            Vector2.zero, new Vector2(220f, 62f));
-        SetRect(hostButton.transform as RectTransform, new Vector2(0.08f, 0.57f), new Vector2(0.08f, 0.57f),
-            new Vector2(110f, 0f), new Vector2(220f, 62f), new Vector2(0.5f, 0.5f));
+        hostButton = RuntimeUIFactory.CreateButton(root, "Connect_Host", "HOST ROOM",
+            Vector2.zero, new Vector2(250f, 62f));
+        SetRect(hostButton.transform as RectTransform, new Vector2(0.08f, 0.59f), new Vector2(0.08f, 0.59f),
+            new Vector2(125f, 0f), new Vector2(250f, 62f), new Vector2(0.5f, 0.5f));
 
         var inputRoot = RuntimeUIFactory.CreatePanel(root, "Connect_IpInput", new Color(0.06f, 0.08f, 0.11f, 0.96f),
-            new Vector2(0.08f, 0.38f), new Vector2(0.62f, 0.52f), Vector2.zero, Vector2.zero);
+            new Vector2(0.08f, 0.38f), new Vector2(0.60f, 0.52f), Vector2.zero, Vector2.zero);
         ipInputField = inputRoot.AddComponent<TMP_InputField>();
         ipInputField.textComponent = RuntimeUIFactory.CreateText(inputRoot.transform, "Ip_Text", "127.0.0.1", 28,
             TextAlignmentOptions.Center, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.white);
@@ -408,9 +404,9 @@ public class NetworkLobbyUI : MonoBehaviour
         ipInputField.characterLimit = 32;
 
         joinButton = RuntimeUIFactory.CreateButton(root, "Connect_Join", "JOIN",
-            Vector2.zero, new Vector2(170f, 62f));
-        SetRect(joinButton.transform as RectTransform, new Vector2(0.68f, 0.45f), new Vector2(0.68f, 0.45f),
-            new Vector2(85f, 0f), new Vector2(170f, 62f), new Vector2(0.5f, 0.5f));
+            Vector2.zero, new Vector2(150f, 62f));
+        SetRect(joinButton.transform as RectTransform, new Vector2(0.76f, 0.45f), new Vector2(0.76f, 0.45f),
+            new Vector2(75f, 0f), new Vector2(150f, 62f), new Vector2(0.5f, 0.5f));
 
         connectStatusText = RuntimeUIFactory.CreateText(root, "Connect_Status", "Start a host or join by IP.", 24,
             TextAlignmentOptions.Left, new Vector2(0.08f, 0.22f), new Vector2(0.88f, 0.32f),
@@ -427,6 +423,8 @@ public class NetworkLobbyUI : MonoBehaviour
         RuntimeUIFactory.CreateText(root, "Waiting_Title", "WAITING ROOM", 38,
             TextAlignmentOptions.Left, new Vector2(0.08f, 0.78f), new Vector2(0.92f, 0.92f),
             Vector2.zero, Vector2.zero, Color.white);
+        RuntimeUIFactory.CreatePixelText(root, "Waiting_Title_Pixel", "WAITING ROOM", TextAnchor.MiddleLeft,
+            new Vector2(0.08f, 0.80f), new Vector2(0.70f, 0.90f), Vector2.zero, Vector2.zero, Color.white);
 
         playerCountText = RuntimeUIFactory.CreateText(root, "Waiting_Count", "PLAYERS  1 / 4", 42,
             TextAlignmentOptions.Left, new Vector2(0.08f, 0.58f), new Vector2(0.88f, 0.70f),
@@ -437,14 +435,47 @@ public class NetworkLobbyUI : MonoBehaviour
             Vector2.zero, Vector2.zero, new Color(0.72f, 0.83f, 0.92f));
 
         startButton = RuntimeUIFactory.CreateButton(root, "Waiting_Start", "START MATCH",
-            Vector2.zero, new Vector2(260f, 62f));
+            Vector2.zero, new Vector2(280f, 62f));
         SetRect(startButton.transform as RectTransform, new Vector2(0.08f, 0.22f), new Vector2(0.08f, 0.22f),
-            new Vector2(130f, 0f), new Vector2(260f, 62f), new Vector2(0.5f, 0.5f));
+            new Vector2(140f, 0f), new Vector2(280f, 62f), new Vector2(0.5f, 0.5f));
 
         waitingCancelButton = RuntimeUIFactory.CreateButton(root, "Waiting_Cancel", "CANCEL",
             Vector2.zero, new Vector2(180f, 54f));
         SetRect(waitingCancelButton.transform as RectTransform, new Vector2(0.08f, 0.10f), new Vector2(0.08f, 0.10f),
             new Vector2(90f, 0f), new Vector2(180f, 54f), new Vector2(0.5f, 0.5f));
+    }
+
+    private static void CreateLobbyShowcase(Transform root)
+    {
+        var side = RuntimeUIFactory.CreateRoundedPanel(root, "Lobby_SidePreview",
+            new Color(0.035f, 0.045f, 0.065f, 0.96f),
+            new Vector2(0.64f, 0.18f), new Vector2(0.91f, 0.66f), Vector2.zero, Vector2.zero,
+            44f, new Color(1f, 1f, 1f, 0.9f));
+
+        RuntimeUIFactory.CreateText(side.transform, "Lobby_MapLabel", "NEXT ARENA", 30,
+            TextAlignmentOptions.Center, new Vector2(0.08f, 0.80f), new Vector2(0.92f, 0.90f),
+            Vector2.zero, Vector2.zero, Color.white);
+        RuntimeUIFactory.CreatePixelText(side.transform, "Lobby_MapLabel_Pixel", "UP TO 4", TextAnchor.MiddleCenter,
+            new Vector2(0.22f, 0.70f), new Vector2(0.78f, 0.78f),
+            Vector2.zero, Vector2.zero, new Color(1f, 0.82f, 0.18f));
+
+        var mini = RuntimeUIFactory.CreateRoundedPanel(side.transform, "Lobby_MiniArena",
+            new Color(0.005f, 0.012f, 0.025f, 0.90f),
+            new Vector2(0.12f, 0.24f), new Vector2(0.88f, 0.66f), Vector2.zero, Vector2.zero,
+            34f, new Color(0.1f, 0.95f, 1f, 0.55f));
+
+        RuntimeUIFactory.CreateRoundedPanel(mini.transform, "Lobby_PlatformMain", new Color(0.03f, 0.56f, 0.95f, 0.96f),
+            new Vector2(0.16f, 0.42f), new Vector2(0.84f, 0.54f), Vector2.zero, Vector2.zero, 18f);
+        RuntimeUIFactory.CreateRoundedPanel(mini.transform, "Lobby_PlatformTop", new Color(1f, 0.30f, 0.08f, 0.96f),
+            new Vector2(0.34f, 0.63f), new Vector2(0.66f, 0.73f), Vector2.zero, Vector2.zero, 16f);
+        RuntimeUIFactory.CreateRoundedPanel(mini.transform, "Lobby_PlayerA", new Color(0f, 0.78f, 1f, 0.96f),
+            new Vector2(0.24f, 0.60f), new Vector2(0.34f, 0.78f), Vector2.zero, Vector2.zero, 16f);
+        RuntimeUIFactory.CreateRoundedPanel(mini.transform, "Lobby_PlayerB", new Color(1f, 0.18f, 0.58f, 0.96f),
+            new Vector2(0.68f, 0.22f), new Vector2(0.78f, 0.40f), Vector2.zero, Vector2.zero, 16f);
+
+        RuntimeUIFactory.CreateText(side.transform, "Lobby_RuleText", "Host starts the match after players join.", 20,
+            TextAlignmentOptions.Center, new Vector2(0.10f, 0.10f), new Vector2(0.90f, 0.18f),
+            Vector2.zero, Vector2.zero, new Color(0.72f, 0.83f, 0.92f));
     }
 
     private void BindButtons()

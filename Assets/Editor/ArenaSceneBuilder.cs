@@ -17,6 +17,8 @@ public static class ArenaSceneBuilder
     private const float DeathZoneY       = -6f;   // 낙사 판정 Y 위치
     private const float WallHeight       = 2f;    // 낮은 가드레일 (선택)
 
+    private const float SpawnHeight      = 8f;
+
     [MenuItem("Tools/Neon Rewind/Build Arena Scene")]
     public static void BuildArenaScene()
     {
@@ -97,10 +99,10 @@ public static class ArenaSceneBuilder
 
         float spawnR = PlatformRadius * 0.6f;
         Vector3[] spawnOffsets = {
-            new Vector3( spawnR,  1f,  0f),
-            new Vector3(-spawnR,  1f,  0f),
-            new Vector3( 0f,      1f,  spawnR),
-            new Vector3( 0f,      1f, -spawnR),
+            new Vector3( spawnR,  SpawnHeight,  0f),
+            new Vector3(-spawnR,  SpawnHeight,  0f),
+            new Vector3( 0f,      SpawnHeight,  spawnR),
+            new Vector3( 0f,      SpawnHeight, -spawnR),
         };
 
         var spawnPoints = new Transform[4];

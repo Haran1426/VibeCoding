@@ -11,7 +11,7 @@ using TMPro;
 public class MenuManager : MonoBehaviour
 {
     [Header("Runtime title scene")]
-    [SerializeField] private bool rebuildTitleSceneAtRuntime = false;
+    [SerializeField] private bool rebuildTitleSceneAtRuntime = true;
 
     // ── 패널 ─────────────────────────────────────────────────
     [Header("패널")]
@@ -179,31 +179,39 @@ public class MenuManager : MonoBehaviour
         CreateTitleBackdrop(mainPanel.transform);
 
         RuntimeUIFactory.CreateText(mainPanel.transform, "Title_Kicker", "ONLINE MULTIPLAYER BRAWLER", 24,
-            TextAlignmentOptions.Left, new Vector2(0.06f, 0.72f), new Vector2(0.56f, 0.72f),
+            TextAlignmentOptions.Left, new Vector2(0.07f, 0.78f), new Vector2(0.50f, 0.82f),
             Vector2.zero, new Vector2(0f, 40f), new Color(0.1f, 0.95f, 1f));
+        RuntimeUIFactory.CreatePixelText(mainPanel.transform, "Title_Kicker_Pixel", "ONLINE BRAWLER", TextAnchor.MiddleLeft,
+            new Vector2(0.07f, 0.735f), new Vector2(0.44f, 0.775f), Vector2.zero, Vector2.zero,
+            new Color(0.1f, 0.95f, 1f));
 
-        RuntimeUIFactory.CreateText(mainPanel.transform, "Title_Logo", "NEON\nREWIND", 118,
-            TextAlignmentOptions.Left, new Vector2(0.06f, 0.47f), new Vector2(0.62f, 0.71f),
+        RuntimeUIFactory.CreateText(mainPanel.transform, "Title_Logo", "REWIND\nRUMBLE", 104,
+            TextAlignmentOptions.Left, new Vector2(0.07f, 0.53f), new Vector2(0.55f, 0.73f),
             Vector2.zero, Vector2.zero, Color.white);
+        RuntimeUIFactory.CreatePixelText(mainPanel.transform, "Title_Logo_Pixel", "REWIND\nRUMBLE", TextAnchor.MiddleLeft,
+            new Vector2(0.07f, 0.535f), new Vector2(0.52f, 0.70f), Vector2.zero, Vector2.zero, Color.white);
 
         RuntimeUIFactory.CreateText(mainPanel.transform, "Title_Subtitle",
             "Every knockout leaves a replay clone behind. Survive your own past and outscore the arena.",
-            28, TextAlignmentOptions.Left, new Vector2(0.06f, 0.38f), new Vector2(0.57f, 0.46f),
+            26, TextAlignmentOptions.Left, new Vector2(0.07f, 0.405f), new Vector2(0.53f, 0.49f),
             Vector2.zero, Vector2.zero, new Color(0.72f, 0.83f, 0.92f));
+        RuntimeUIFactory.CreatePixelText(mainPanel.transform, "Title_Mode_Pixel", "HOST OR JOIN ONLINE", TextAnchor.MiddleLeft,
+            new Vector2(0.07f, 0.345f), new Vector2(0.45f, 0.385f), Vector2.zero, Vector2.zero,
+            new Color(1f, 0.82f, 0.18f));
 
         playMultiButton = RuntimeUIFactory.CreateButton(mainPanel.transform, "Title_PlayOnline", "HOST / JOIN ONLINE",
             new Vector2(0f, 0f), new Vector2(390f, 64f));
-        SetRect(playMultiButton.transform as RectTransform, new Vector2(0.06f, 0.26f), new Vector2(0.06f, 0.26f),
+        SetRect(playMultiButton.transform as RectTransform, new Vector2(0.07f, 0.255f), new Vector2(0.07f, 0.255f),
             new Vector2(195f, 0f), new Vector2(390f, 64f), new Vector2(0.5f, 0.5f));
 
         settingsButton = RuntimeUIFactory.CreateButton(mainPanel.transform, "Title_Settings", "SETTINGS",
             Vector2.zero, new Vector2(190f, 56f));
-        SetRect(settingsButton.transform as RectTransform, new Vector2(0.06f, 0.17f), new Vector2(0.06f, 0.17f),
+        SetRect(settingsButton.transform as RectTransform, new Vector2(0.07f, 0.165f), new Vector2(0.07f, 0.165f),
             new Vector2(95f, 0f), new Vector2(190f, 56f), new Vector2(0.5f, 0.5f));
 
         quitButton = RuntimeUIFactory.CreateButton(mainPanel.transform, "Title_Quit", "QUIT",
             Vector2.zero, new Vector2(150f, 56f));
-        SetRect(quitButton.transform as RectTransform, new Vector2(0.18f, 0.17f), new Vector2(0.18f, 0.17f),
+        SetRect(quitButton.transform as RectTransform, new Vector2(0.205f, 0.165f), new Vector2(0.205f, 0.165f),
             new Vector2(75f, 0f), new Vector2(150f, 56f), new Vector2(0.5f, 0.5f));
 
         bestScoreText = RuntimeUIFactory.CreateText(mainPanel.transform, "Title_BestScore", "", 24,
@@ -211,7 +219,7 @@ public class MenuManager : MonoBehaviour
             Vector2.zero, Vector2.zero, new Color(1f, 0.82f, 0.18f));
 
         versionText = RuntimeUIFactory.CreateText(mainPanel.transform, "Title_Version", "ALPHA 0.1.0  |  16:9 ONLINE BUILD", 18,
-            TextAlignmentOptions.Left, new Vector2(0.06f, 0.06f), new Vector2(0.45f, 0.1f),
+            TextAlignmentOptions.Left, new Vector2(0.07f, 0.06f), new Vector2(0.45f, 0.1f),
             Vector2.zero, Vector2.zero, new Color(0.45f, 0.55f, 0.66f));
 
         settingsPanel = RuntimeUIFactory.CreatePanel(canvas.transform, "Title_Settings_Runtime",
@@ -223,27 +231,56 @@ public class MenuManager : MonoBehaviour
 
     private void CreateTitleBackdrop(Transform root)
     {
-        RuntimeUIFactory.CreatePanel(root, "Title_CyanRail", new Color(0f, 0.7f, 1f, 0.34f),
-            new Vector2(0.62f, 0.16f), new Vector2(0.625f, 0.86f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreatePanel(root, "Title_MagentaRail", new Color(1f, 0.12f, 0.55f, 0.30f),
-            new Vector2(0.70f, 0.08f), new Vector2(0.706f, 0.78f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreatePanel(root, "Title_GoldRail", new Color(1f, 0.78f, 0.1f, 0.24f),
-            new Vector2(0.78f, 0.24f), new Vector2(0.785f, 0.94f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(root, "Title_LeftGlow", new Color(0f, 0.72f, 1f, 0.16f),
+            new Vector2(0.035f, 0.12f), new Vector2(0.045f, 0.88f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(root, "Title_ButtonDock", new Color(0.02f, 0.03f, 0.05f, 0.82f),
+            new Vector2(0.055f, 0.12f), new Vector2(0.47f, 0.32f), Vector2.zero, Vector2.zero);
 
-        var arena = RuntimeUIFactory.CreatePanel(root, "Title_ArenaPreview", new Color(0.03f, 0.04f, 0.06f, 0.92f),
-            new Vector2(0.62f, 0.24f), new Vector2(0.92f, 0.72f), Vector2.zero, Vector2.zero);
+        var showcase = RuntimeUIFactory.CreateRoundedPanel(root, "Title_ArenaShowcase",
+            new Color(0.035f, 0.045f, 0.065f, 0.96f),
+            new Vector2(0.61f, 0.18f), new Vector2(0.93f, 0.82f), Vector2.zero, Vector2.zero,
+            46f, new Color(1f, 1f, 1f, 0.92f));
 
-        RuntimeUIFactory.CreatePanel(arena.transform, "Preview_Platform", new Color(0.0f, 0.62f, 0.95f, 0.7f),
-            new Vector2(0.15f, 0.42f), new Vector2(0.85f, 0.48f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreatePanel(arena.transform, "Preview_Spinner", new Color(1f, 0.32f, 0.08f, 0.8f),
-            new Vector2(0.32f, 0.52f), new Vector2(0.68f, 0.56f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreatePanel(arena.transform, "Preview_PlayerA", new Color(0f, 0.78f, 1f, 0.9f),
-            new Vector2(0.28f, 0.58f), new Vector2(0.34f, 0.72f), Vector2.zero, Vector2.zero);
-        RuntimeUIFactory.CreatePanel(arena.transform, "Preview_PlayerB", new Color(1f, 0.18f, 0.58f, 0.9f),
-            new Vector2(0.66f, 0.32f), new Vector2(0.72f, 0.46f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreateText(showcase.transform, "Preview_Title", "DROP ARENA", 32,
+            TextAlignmentOptions.Center, new Vector2(0.08f, 0.82f), new Vector2(0.92f, 0.92f),
+            Vector2.zero, Vector2.zero, Color.white);
+        RuntimeUIFactory.CreatePixelText(showcase.transform, "Preview_Title_Pixel", "DROP ARENA", TextAnchor.MiddleCenter,
+            new Vector2(0.16f, 0.80f), new Vector2(0.84f, 0.88f),
+            Vector2.zero, Vector2.zero, new Color(1f, 0.82f, 0.18f));
 
-        RuntimeUIFactory.CreateText(arena.transform, "Preview_Label", "4 PLAYER ONLINE ARENA", 22,
-            TextAlignmentOptions.Center, new Vector2(0f, 0.08f), new Vector2(1f, 0.16f),
+        var arena = RuntimeUIFactory.CreateRoundedPanel(showcase.transform, "Preview_ArenaCard",
+            new Color(0.005f, 0.012f, 0.025f, 0.92f),
+            new Vector2(0.10f, 0.25f), new Vector2(0.90f, 0.75f), Vector2.zero, Vector2.zero,
+            44f, new Color(0.1f, 0.95f, 1f, 0.7f));
+
+        RuntimeUIFactory.CreatePanel(arena.transform, "Preview_BackRailA", new Color(0f, 0.72f, 1f, 0.28f),
+            new Vector2(0.12f, 0.16f), new Vector2(0.14f, 0.90f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(arena.transform, "Preview_BackRailB", new Color(1f, 0.18f, 0.58f, 0.25f),
+            new Vector2(0.42f, 0.04f), new Vector2(0.445f, 0.92f), Vector2.zero, Vector2.zero);
+        RuntimeUIFactory.CreatePanel(arena.transform, "Preview_BackRailC", new Color(1f, 0.78f, 0.1f, 0.24f),
+            new Vector2(0.74f, 0.14f), new Vector2(0.765f, 0.98f), Vector2.zero, Vector2.zero);
+
+        RuntimeUIFactory.CreateRoundedPanel(arena.transform, "Preview_MainPlatform", new Color(0.03f, 0.56f, 0.95f, 0.96f),
+            new Vector2(0.20f, 0.42f), new Vector2(0.82f, 0.52f), Vector2.zero, Vector2.zero,
+            22f, new Color(1f, 1f, 1f, 0.55f));
+        RuntimeUIFactory.CreateRoundedPanel(arena.transform, "Preview_UpperPlatform", new Color(1f, 0.30f, 0.08f, 0.96f),
+            new Vector2(0.36f, 0.57f), new Vector2(0.70f, 0.64f), Vector2.zero, Vector2.zero,
+            16f);
+        RuntimeUIFactory.CreateRoundedPanel(arena.transform, "Preview_LowerPlatform", new Color(1f, 0.82f, 0.12f, 0.96f),
+            new Vector2(0.24f, 0.27f), new Vector2(0.46f, 0.35f), Vector2.zero, Vector2.zero,
+            16f);
+        RuntimeUIFactory.CreateRoundedPanel(arena.transform, "Preview_SpinnerCore", new Color(0.75f, 0.25f, 1f, 0.95f),
+            new Vector2(0.72f, 0.48f), new Vector2(0.78f, 0.58f), Vector2.zero, Vector2.zero,
+            18f);
+        RuntimeUIFactory.CreateRoundedPanel(arena.transform, "Preview_PlayerA", new Color(0f, 0.78f, 1f, 0.96f),
+            new Vector2(0.32f, 0.66f), new Vector2(0.39f, 0.82f), Vector2.zero, Vector2.zero,
+            18f);
+        RuntimeUIFactory.CreateRoundedPanel(arena.transform, "Preview_PlayerB", new Color(1f, 0.18f, 0.58f, 0.96f),
+            new Vector2(0.70f, 0.28f), new Vector2(0.77f, 0.44f), Vector2.zero, Vector2.zero,
+            18f);
+
+        RuntimeUIFactory.CreateText(showcase.transform, "Preview_Label", "3 - 2 - 1 DROP  |  RINGOUTS  |  REPLAY CLONES", 20,
+            TextAlignmentOptions.Center, new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.20f),
             Vector2.zero, Vector2.zero, new Color(0.8f, 0.92f, 1f));
     }
 
@@ -291,7 +328,7 @@ public class MenuManager : MonoBehaviour
         slider.value = 0.8f;
         slider.fillRect = fill.transform as RectTransform;
         slider.handleRect = handle.transform as RectTransform;
-        slider.targetGraphic = handle.GetComponent<Image>();
+        slider.targetGraphic = handle.GetComponent<Graphic>();
         slider.direction = Slider.Direction.LeftToRight;
         return slider;
     }
@@ -322,6 +359,7 @@ public class MenuManager : MonoBehaviour
         {
             Transform child = canvasRoot.GetChild(i);
             if (!child.name.StartsWith("Title_")) continue;
+            if (child.name == "Title_Lobby_Runtime") continue;
 
             if (Application.isPlaying)
                 Destroy(child.gameObject);

@@ -11,11 +11,11 @@ public class PlayerStats : MonoBehaviour
     public bool isClone  = false;
 
     [Header("이동")]
-    public float moveSpeed   = 8f;
-    public float jumpForce   = 10f;
+    public float moveSpeed   = 10.5f;
+    public float jumpForce   = 11f;
 
     [Header("대시")]
-    public float dashSpeed    = 20f;
+    public float dashSpeed    = 26f;
     public float dashDuration = 0.14f;
     public float dashCooldown = 0.9f;
 

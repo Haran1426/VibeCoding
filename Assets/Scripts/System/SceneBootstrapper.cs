@@ -41,6 +41,9 @@ public class SceneBootstrapper : MonoBehaviour
 
         if (FindFirstObjectByType<HitStopManager>() == null)
             new GameObject("HitStopManager_Runtime").AddComponent<HitStopManager>();
+
+        if (FindFirstObjectByType<GameFeelDirector>() == null)
+            new GameObject("GameFeelDirector_Runtime").AddComponent<GameFeelDirector>();
     }
 
     private static void EnsureRuntimeUIManagers()
